@@ -1,0 +1,26 @@
+# Python 通用忽略
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+build/
+dist/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# VS Code: 仅忽略缓存，不忽略你想共享的 settings.json
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# 其它临时
+*.log
+.DS_Store
+Thumbs.db
+
+.xlsx
+simulation_result/
