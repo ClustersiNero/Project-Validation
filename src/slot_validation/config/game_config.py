@@ -53,6 +53,9 @@ class GameConfig:
     wager_modes: dict[int, WagerMode]
     symbols: dict[int, SymbolDef]
 
+    scatter_symbol_id: int
+    multiplier_symbol_id: int
+
     multiplier_values: tuple[int, ...]
     multiplier_profiles: dict[int, MultiplierProfile]
 
@@ -76,7 +79,8 @@ def build_game_config(
     Flow:
     1. precheck raw module structure
     2. normalize / build config objects
-    3. validate cross references
+    3. derive engine-facing special symbol ids
+    4. validate cross references
     """
     _precheck_module(module)
     _precheck_definition(definition)
@@ -89,6 +93,8 @@ def build_game_config(
 
     wager_modes = _build_wager_modes(wager_modes_raw)
     symbols = _build_symbols(paytable_raw)
+    scatter_symbol_id = _find_symbol_id_by_type(symbols, "scatter")
+    multiplier_symbol_id = _find_symbol_id_by_type(symbols, "multiplier")
     multiplier_values, multiplier_profiles = _build_multiplier_data(multiplier_data_raw)
     strip_sets = _build_strip_sets(strip_sets_raw)
     implementation = _build_implementation(implementation_raw)
@@ -99,6 +105,8 @@ def build_game_config(
         definition=definition,
         wager_modes=wager_modes,
         symbols=symbols,
+        scatter_symbol_id=scatter_symbol_id,
+        multiplier_symbol_id=multiplier_symbol_id,
         multiplier_values=multiplier_values,
         multiplier_profiles=multiplier_profiles,
         strip_sets=strip_sets,
@@ -132,10 +140,6 @@ def _precheck_definition(definition: OlympusMiniDefinition) -> None:
         raise ValueError("definition.board_rows must be > 0.")
     if definition.board_cols <= 0:
         raise ValueError("definition.board_cols must be > 0.")
-    if definition.scatter_symbol_id <= 0:
-        raise ValueError("definition.scatter_symbol_id must be > 0.")
-    if definition.multiplier_symbol_id <= 0:
-        raise ValueError("definition.multiplier_symbol_id must be > 0.")
 
 
 # ============================================================
@@ -379,30 +383,17 @@ def _validate_cross_references(config: GameConfig) -> None:
                         f"unknown symbol_id {symbol_id}."
                     )
 
-    # 6. fixed symbol ids from definition must exist
-    if definition.scatter_symbol_id not in config.symbols:
-        raise ValueError(
-            f"definition.scatter_symbol_id {definition.scatter_symbol_id} "
-            f"not found in PAYTABLE."
-        )
-
-    if definition.multiplier_symbol_id not in config.symbols:
-        raise ValueError(
-            f"definition.multiplier_symbol_id {definition.multiplier_symbol_id} "
-            f"not found in PAYTABLE."
-        )
-
-    # 7. fixed symbol types should match definition intent
-    scatter_symbol = config.symbols[definition.scatter_symbol_id]
+    # 6. derived special symbol ids must still point to the correct types
+    scatter_symbol = config.symbols[config.scatter_symbol_id]
     if scatter_symbol.symbol_type != "scatter":
         raise ValueError(
-            f"PAYTABLE[{definition.scatter_symbol_id}] must have symbol_type='scatter'."
+            f"PAYTABLE[{config.scatter_symbol_id}] must have symbol_type='scatter'."
         )
 
-    multiplier_symbol = config.symbols[definition.multiplier_symbol_id]
+    multiplier_symbol = config.symbols[config.multiplier_symbol_id]
     if multiplier_symbol.symbol_type != "multiplier":
         raise ValueError(
-            f"PAYTABLE[{definition.multiplier_symbol_id}] must have "
+            f"PAYTABLE[{config.multiplier_symbol_id}] must have "
             f"symbol_type='multiplier'."
         )
 
@@ -410,6 +401,24 @@ def _validate_cross_references(config: GameConfig) -> None:
 # ============================================================
 # Helpers
 # ============================================================
+
+def _find_symbol_id_by_type(symbols: dict[int, SymbolDef], symbol_type: str) -> int:
+    matched_ids = [
+        symbol_id
+        for symbol_id, symbol in symbols.items()
+        if symbol.symbol_type == symbol_type
+    ]
+
+    if not matched_ids:
+        raise ValueError(f"No symbol found with symbol_type='{symbol_type}'.")
+    if len(matched_ids) > 1:
+        raise ValueError(
+            f"Expected exactly one symbol with symbol_type='{symbol_type}', "
+            f"got {matched_ids}."
+        )
+
+    return matched_ids[0]
+
 
 def _require_attr(obj: Any, attr_name: str) -> Any:
     if not hasattr(obj, attr_name):
