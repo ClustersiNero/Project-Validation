@@ -34,13 +34,17 @@ def run_engine(
 	stake_amount: float,
 	state_name: str,
 ) -> EngineRunResult:
-	wager_amount = stake_amount
 	if total_wagers <= 0:
 		raise ValueError("total_wagers must be > 0")
-	if wager_amount <= 0:
-		raise ValueError("wager_amount must be > 0")
+	if stake_amount <= 0:
+		raise ValueError("stake_amount must be > 0")
 	if mode_id not in config.wager_modes:
 		raise ValueError(f"Unknown mode_id: {mode_id}")
+
+	mode = config.wager_modes[mode_id]
+	wager_amount = stake_amount * mode.wager_cost_multiplier
+	if wager_amount <= 0:
+		raise ValueError("wager_amount must be > 0")
 
 	rng = DeterministicRNG(seed=seed)
 	wagers: list[EngineWagerRecord] = []
@@ -56,14 +60,14 @@ def run_engine(
 			)
 		)
 
-		total_bet = float(total_wagers * wager_amount)
+	total_bet = float(total_wagers * wager_amount)
 	total_win = float(sum(w.total_win for w in wagers))
 	return EngineRunResult(
 		seed=seed,
 		config_id=config_id,
 		mode_id=mode_id,
-		mode_name=config.wager_modes[mode_id].mode_name,
-		stake_amount=float(wager_amount),
+		mode_name=mode.mode_name,
+		stake_amount=float(stake_amount),
 		total_wagers=total_wagers,
 		wagers=tuple(wagers),
 		total_bet=total_bet,

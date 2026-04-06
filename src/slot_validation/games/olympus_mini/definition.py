@@ -89,3 +89,8 @@ ROUND_RESOLUTION_ORDER: tuple[str, ...] = (
     "pay_scatter",
     "enter_free_game_if_triggered",
 )
+
+# Feature-buy semantics note:
+# feature_buy does not bypass base-round execution in engine flow.
+# Its guarantee characteristics come from predefined mode config / strip behavior,
+# not from runtime shortcuts in engine control.

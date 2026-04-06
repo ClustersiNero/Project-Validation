@@ -154,7 +154,13 @@ def finalize_round_payout(
 	definition = config.definition
 
 	if state_name == definition.free_state_name and definition.free_game_has_global_multiplier:
-		if has_round_multiplier_symbol and round_subtotal > 0:
+		current_round_multiplier_required = (
+			definition.free_game_global_multiplier_applies_only_if_current_round_has_multiplier_symbol
+		)
+		can_apply_global = round_subtotal > 0 and (
+			has_round_multiplier_symbol or not current_round_multiplier_required
+		)
+		if can_apply_global:
 			if definition.free_game_applied_multiplier_combines_current_and_global_by_addition:
 				applied_multiplier = round_multiplier_total + stored_global_multiplier
 			else:
