@@ -11,6 +11,7 @@ class BoardResult:
 	board: tuple[tuple[int, ...], ...]
 	strip_set_id: int
 	multiplier_profile_id: int
+	column_strip_ids: tuple[int, ...]
 
 
 def _slice_cyclic(strip: tuple[int, ...], start_idx: int, size: int) -> tuple[int, ...]:
@@ -44,4 +45,50 @@ def generate_board(
 		columns.append(_slice_cyclic(strip, start_idx, rows))
 
 	board = tuple(tuple(columns[col][row] for col in range(cols)) for row in range(rows))
-	return BoardResult(board=board, strip_set_id=strip_set_id, multiplier_profile_id=profile_id)
+	return BoardResult(
+		board=board,
+		strip_set_id=strip_set_id,
+		multiplier_profile_id=profile_id,
+		column_strip_ids=tuple(strip_ids),
+	)
+
+
+def clear_gravity_refill(
+	*,
+	board: tuple[tuple[int, ...], ...],
+	winning_positions: set[tuple[int, int]],
+	config: GameConfig,
+	strip_set_id: int,
+	column_strip_ids: tuple[int, ...],
+	rng: DeterministicRNG,
+) -> tuple[tuple[int, ...], ...]:
+	rows = config.definition.board_rows
+	cols = config.definition.board_cols
+	matrix = [[board[row][col] for row in range(rows)] for col in range(cols)]
+
+	# 1) Clear winning regular symbols.
+	for col, row in winning_positions:
+		matrix[col][row] = 0
+
+	# 2) Gravity: non-zero symbols fall to bottom.
+	for col in range(cols):
+		non_zero = [matrix[col][row] for row in range(rows) if matrix[col][row] != 0]
+		num_zeros = rows - len(non_zero)
+		new_col = [0] * num_zeros + non_zero
+		for row in range(rows):
+			matrix[col][row] = new_col[row]
+
+	# 3) Refill zeros from same round-selected strip set/profile context.
+	strip_set = config.strip_sets[strip_set_id]
+	for col in range(cols):
+		empty_rows = [row for row in range(rows) if matrix[col][row] == 0]
+		if not empty_rows:
+			continue
+		strip_id = column_strip_ids[col]
+		strip = strip_set[strip_id]
+		start_idx = rng.randint(0, len(strip) - 1)
+		fill_symbols = _slice_cyclic(strip, start_idx, len(empty_rows))
+		for row, symbol in zip(empty_rows, fill_symbols):
+			matrix[col][row] = symbol
+
+	return tuple(tuple(matrix[col][row] for col in range(cols)) for row in range(rows))

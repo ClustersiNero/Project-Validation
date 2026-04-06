@@ -10,10 +10,10 @@ class OlympusMiniDefinition:
 
     This file contains game invariants:
     - board shape
-    - fixed symbol ids
     - fixed state names
     - fixed trigger semantics
     - fixed round resolution semantics
+    - fixed multiplier accumulation semantics
 
     These are NOT external config parameters.
     """
@@ -39,6 +39,24 @@ class OlympusMiniDefinition:
     # Round semantics
     multiplier_applies_to_entire_round_win: bool = True
     multiplier_applies_after_cascade_chain_ends: bool = True
+
+    # Base-game multiplier semantics
+    base_round_multiplier_resets_after_round: bool = True
+
+    # Free-game multiplier semantics
+    free_game_has_global_multiplier: bool = True
+    free_game_global_multiplier_starts_at_zero: bool = True
+    free_game_collects_round_multiplier_into_global: bool = True
+    free_game_global_multiplier_accumulates_by_addition: bool = True
+
+    # Application condition for free-game global multiplier:
+    # in free game, previously collected global multiplier only participates
+    # when the current winning round also contains multiplier symbol(s)
+    free_game_global_multiplier_applies_only_if_current_round_has_multiplier_symbol: bool = True
+
+    # If a free-game winning round has multiplier symbols,
+    # final applied multiplier = current_round_multiplier + stored_global_multiplier
+    free_game_applied_multiplier_combines_current_and_global_by_addition: bool = True
 
     # Symbol behavior semantics
     regular_symbols_can_form_wins: bool = True
