@@ -10,28 +10,30 @@ from slot_validation.engine.runner import run_engine
 from slot_validation.games.olympus_mini.definition import OLYMPUS_MINI_DEFINITION
 
 
-def _load_default_config_module() -> Any:
+def _load_default_module() -> Any:
 	return importlib.import_module("configs.game.olympus_mini")
 
 
 def run_simulation(
 	*,
 	seed: int,
-	spins: int,
-	wager_mode_id: int = 1,
-	stake: float = 1.0,
+	total_wagers: int,
+	mode_id: int = 1,
+	stake_amount: float = 1.0,
 	state_name: str = "basic",
+	config_id: str = "configs.game.olympus_mini",
 	config_module: Any | None = None,
 ) -> CanonicalResult:
-	module = config_module if config_module is not None else _load_default_config_module()
-	config = build_game_config(module=module, definition=OLYMPUS_MINI_DEFINITION)
+	module = config_module if config_module is not None else _load_default_module()
+	game_config = build_game_config(module=module, definition=OLYMPUS_MINI_DEFINITION)
 
 	engine_result = run_engine(
-		config=config,
+		config=game_config,
+		config_id=config_id,
 		seed=seed,
-		wager_mode_id=wager_mode_id,
-		spins=spins,
-		stake=stake,
+		mode_id=mode_id,
+		total_wagers=total_wagers,
+		stake_amount=stake_amount,
 		state_name=state_name,
 	)
-	return build_canonical_result(engine_result=engine_result, config=config)
+	return build_canonical_result(engine_result, game_config)

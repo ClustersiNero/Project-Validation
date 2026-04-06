@@ -3,62 +3,68 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from slot_validation.config.game_config import GameConfig
-from slot_validation.engine.evaluator import EvaluatedSpin, evaluate_single_spin
+from slot_validation.engine.evaluator import EngineWagerRecord, evaluate_wager
 from slot_validation.engine.rng import DeterministicRNG
+
+
+ENGINE_VERSION = "0.2.0"
 
 
 @dataclass(frozen=True)
 class EngineRunResult:
 	seed: int
-	wager_mode_id: int
-	state_name: str
-	stake: float
-	spins: int
+	config_id: str
+	mode_id: int
+	mode_name: str
+	stake_amount: float
+	total_wagers: int
+	wagers: tuple[EngineWagerRecord, ...]
 	total_bet: float
 	total_win: float
-	spin_results: tuple[EvaluatedSpin, ...]
+	engine_version: str = ENGINE_VERSION
 
 
 def run_engine(
 	*,
 	config: GameConfig,
+	config_id: str,
 	seed: int,
-	wager_mode_id: int,
-	spins: int,
-	stake: float = 1.0,
-	state_name: str = "basic",
+	mode_id: int,
+	total_wagers: int,
+	stake_amount: float,
+	state_name: str,
 ) -> EngineRunResult:
-	if spins <= 0:
-		raise ValueError("spins must be > 0")
-	if stake <= 0:
-		raise ValueError("stake must be > 0")
-	if wager_mode_id not in config.wager_modes:
-		raise ValueError(f"Unknown wager_mode_id: {wager_mode_id}")
+	if total_wagers <= 0:
+		raise ValueError("total_wagers must be > 0")
+	if stake_amount <= 0:
+		raise ValueError("stake_amount must be > 0")
+	if mode_id not in config.wager_modes:
+		raise ValueError(f"Unknown mode_id: {mode_id}")
 
 	rng = DeterministicRNG(seed=seed)
-	spin_results: list[EvaluatedSpin] = []
-
-	for spin_index in range(1, spins + 1):
-		spin = evaluate_single_spin(
-			spin_index=spin_index,
-			mode_id=wager_mode_id,
-			state_name=state_name,
-			stake=stake,
-			config=config,
-			rng=rng,
+	wagers: list[EngineWagerRecord] = []
+	for wager_id in range(1, total_wagers + 1):
+		wagers.append(
+			evaluate_wager(
+				wager_id=wager_id,
+				config=config,
+				mode_id=mode_id,
+				state_name=state_name,
+				stake=stake_amount,
+				rng=rng,
+			)
 		)
-		spin_results.append(spin)
 
-	total_bet = float(spins) * float(stake)
-	total_win = float(sum(s.total_win for s in spin_results))
-
+	total_bet = float(total_wagers * stake_amount)
+	total_win = float(sum(w.total_win for w in wagers))
 	return EngineRunResult(
 		seed=seed,
-		wager_mode_id=wager_mode_id,
-		state_name=state_name,
-		stake=stake,
-		spins=spins,
+		config_id=config_id,
+		mode_id=mode_id,
+		mode_name=config.wager_modes[mode_id].mode_name,
+		stake_amount=float(stake_amount),
+		total_wagers=total_wagers,
+		wagers=tuple(wagers),
 		total_bet=total_bet,
 		total_win=total_win,
-		spin_results=tuple(spin_results),
 	)

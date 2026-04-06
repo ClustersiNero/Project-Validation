@@ -7,39 +7,37 @@ from slot_validation.engine.rng import DeterministicRNG
 
 
 @dataclass(frozen=True)
-class PayoutBreakdown:
+class PayoutResult:
 	regular_win: float
 	scatter_win: float
-	round_multiplier_sum: int
+	round_multiplier_total: float | None
 	total_win: float
 	symbol_counts: dict[int, int]
+	trigger_flags: tuple[str, ...]
 
 
-def _count_symbols(board_rows: tuple[tuple[int, ...], ...]) -> dict[int, int]:
+def _count_symbols(board: tuple[tuple[int, ...], ...]) -> dict[int, int]:
 	counts: dict[int, int] = {}
-	for row in board_rows:
+	for row in board:
 		for symbol_id in row:
 			counts[symbol_id] = counts.get(symbol_id, 0) + 1
 	return counts
 
 
-def _best_payout_for_count(payouts: dict[int, float], count: int) -> float:
-	best = 0.0
-	for threshold, amount in payouts.items():
-		if count >= threshold and amount > best:
-			best = amount
-	return best
+def _best_payout(payouts: dict[int, float], count: int) -> float:
+	candidates = [amount for threshold, amount in payouts.items() if count >= threshold]
+	return max(candidates) if candidates else 0.0
 
 
-def evaluate_board_payout(
-	board_rows: tuple[tuple[int, ...], ...],
+def evaluate_payout(
+	*,
+	board: tuple[tuple[int, ...], ...],
 	config: GameConfig,
 	stake: float,
 	multiplier_profile_id: int,
 	rng: DeterministicRNG,
-) -> PayoutBreakdown:
-	counts = _count_symbols(board_rows)
-
+) -> PayoutResult:
+	counts = _count_symbols(board)
 	regular_win = 0.0
 	scatter_win = 0.0
 
@@ -47,35 +45,33 @@ def evaluate_board_payout(
 		count = counts.get(symbol_id, 0)
 		if count <= 0:
 			continue
-
-		base_amount = _best_payout_for_count(symbol.payouts, count)
-		if base_amount <= 0:
+		base = _best_payout(symbol.payouts, count)
+		if base <= 0:
 			continue
-
 		if symbol.symbol_type == "regular":
-			regular_win += base_amount * stake
+			regular_win += base * stake
 		elif symbol.symbol_type == "scatter":
-			scatter_win += base_amount * stake
+			scatter_win += base * stake
 
-	multiplier_symbol_count = counts.get(config.multiplier_symbol_id, 0)
-	round_multiplier_sum = 0
-	if multiplier_symbol_count > 0:
+	multiplier_count = counts.get(config.multiplier_symbol_id, 0)
+	multiplier_total = 0.0
+	if multiplier_count > 0:
 		profile = config.multiplier_profiles[multiplier_profile_id]
-		values = config.multiplier_values
-		for _ in range(multiplier_symbol_count):
-			chosen = rng.choice_from_population(values, profile.weights)
-			round_multiplier_sum += chosen
+		for _ in range(multiplier_count):
+			multiplier_total += float(rng.choice_weighted(config.multiplier_values, profile.weights))
 
 	subtotal = regular_win + scatter_win
-	if subtotal > 0 and round_multiplier_sum > 0:
-		total = subtotal * float(round_multiplier_sum)
-	else:
-		total = subtotal
+	total_win = subtotal * multiplier_total if subtotal > 0 and multiplier_total > 0 else subtotal
 
-	return PayoutBreakdown(
+	flags: list[str] = []
+	if counts.get(config.scatter_symbol_id, 0) >= config.definition.base_free_trigger_count:
+		flags.append("free_trigger")
+
+	return PayoutResult(
 		regular_win=regular_win,
 		scatter_win=scatter_win,
-		round_multiplier_sum=round_multiplier_sum,
-		total_win=total,
+		round_multiplier_total=multiplier_total if multiplier_total > 0 else None,
+		total_win=total_win,
 		symbol_counts=counts,
+		trigger_flags=tuple(flags),
 	)

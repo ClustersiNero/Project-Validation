@@ -1,22 +1,18 @@
 from __future__ import annotations
 
-from slot_validation.validation.schema import ValidationCheck
+from slot_validation.validation.schema import CheckResult
 
 
-def validate_metric_range(
-	*,
-	metric_name: str,
-	observed: float,
-	lower_bound: float,
-	upper_bound: float,
-	note: str = "",
-) -> ValidationCheck:
-	passed = lower_bound <= observed <= upper_bound
-	return ValidationCheck(
-		metric_name=metric_name,
+def range_check(metric: str, observed: float, expected_range: tuple[float, float]) -> CheckResult:
+	low, high = expected_range
+	verdict = "pass" if low <= observed <= high else "fail"
+	return CheckResult(
+		metric=metric,
 		observed=observed,
-		lower_bound=lower_bound,
-		upper_bound=upper_bound,
-		passed=passed,
-		note=note,
+		expected=None,
+		range=expected_range,
+		ci=None,
+		deviation=None,
+		verdict=verdict,
+		notes="range_check",
 	)

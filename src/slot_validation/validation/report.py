@@ -1,36 +1,48 @@
 from __future__ import annotations
 
 from slot_validation.metrics.schema import MetricsBundle
-from slot_validation.validation.checks import validate_metric_range
-from slot_validation.validation.schema import ValidationCheck, ValidationReport
+from slot_validation.utils.time import utc_now_iso
+from slot_validation.validation.checks import range_check
+from slot_validation.validation.schema import CheckResult, ValidationMeta, ValidationReport, ValidationSummary
 
 
 def build_validation_report(
+	*,
 	metrics: MetricsBundle,
 	baseline_ranges: dict[str, tuple[float, float]],
 ) -> ValidationReport:
-	checks: list[ValidationCheck] = []
+	checks: list[CheckResult] = []
 
 	metric_map = {
-		"empirical_rtp": metrics.empirical_rtp,
-		"hit_frequency": metrics.hit_frequency,
-		"avg_win_per_spin": metrics.avg_win_per_spin,
-		"top_1pct_payout_share": metrics.top_1pct_payout_share,
+		"core.empirical_rtp": metrics.core.empirical_rtp,
+		"core.hit_frequency": metrics.core.hit_frequency,
+		"core.avg_win": metrics.core.avg_win,
+		"tail.top_1pct_win_share": metrics.tail.top_1pct_win_share,
 	}
 
-	for metric_name, observed in metric_map.items():
-		if metric_name not in baseline_ranges:
+	for metric_name, expected_range in baseline_ranges.items():
+		if metric_name not in metric_map:
 			continue
-		low, high = baseline_ranges[metric_name]
-		checks.append(
-			validate_metric_range(
-				metric_name=metric_name,
-				observed=float(observed),
-				lower_bound=float(low),
-				upper_bound=float(high),
-				note="baseline_range_check",
-			)
-		)
+		checks.append(range_check(metric_name, float(metric_map[metric_name]), expected_range))
 
-	passed = all(c.passed for c in checks) if checks else True
-	return ValidationReport(passed=passed, checks=tuple(checks))
+	pass_count = sum(1 for c in checks if c.verdict == "pass")
+	fail_count = sum(1 for c in checks if c.verdict == "fail")
+	warn_count = 0
+	overall = "fail" if fail_count > 0 else "pass"
+
+	return ValidationReport(
+		meta=ValidationMeta(
+			run_id=metrics.meta.run_id,
+			config_id=metrics.meta.config_id,
+			validation_version="0.1.0",
+			timestamp=utc_now_iso(),
+		),
+		checks=tuple(checks),
+		summary=ValidationSummary(
+			total_checks=len(checks),
+			pass_count=pass_count,
+			fail_count=fail_count,
+			warn_count=warn_count,
+			overall_verdict=overall,
+		),
+	)
