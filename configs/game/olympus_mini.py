@@ -105,10 +105,6 @@ PAYTABLE = {
             5: 5.0,
             6: 100.0,
         },
-        "awards": {
-            "base_trigger": {"free_spins": 15},
-            "feature_retrigger": {"free_spins": 5},
-        },
     },
     11 :{
         "symbol_name": "multiplier",
@@ -118,6 +114,8 @@ PAYTABLE = {
 
 # 倍率图案携带数值与其数值权重组
 # 倍率数值是离散的、2~500共15个、权重组数量不定（最少1个）
+# Multiplier Pattern: Associated Values ​​and Weight Groups
+# The multiplier values ​​are discrete, comprising 15 distinct values ​​ranging from 2 to 500; the number of weight groups is variable (with a minimum of one).
 MULTIPLIER_DATA = {
     'value': [2,    3,   4,   5,   6,   8,  10, 12, 15, 20, 25, 50, 100, 250, 500],
     'weight': {
