@@ -183,3 +183,23 @@ Before writing migration code:
 Do not directly paste legacy code into current files.
 Do not preserve unsafe logic.
 Do not preserve legacy naming when it conflicts with current terminology.
+
+
+## 11. Self-Check Checklist
+
+After completing any implementation task, always output a compact self-check checklist for review.
+
+Required checklist items:
+1. Files modified
+2. Why each file was changed
+3. What behavior changed before vs after
+4. Which existing rules / definition fields / interfaces were reused
+5. What behavior was intentionally kept unchanged
+6. Confirm that no forbidden logic was introduced:
+   - reroll
+   - filter / accept-reject
+   - runtime manipulation
+   - player-dependent logic
+7. Reviewer check points:
+   - which functions to inspect
+   - which variables / branches to inspect

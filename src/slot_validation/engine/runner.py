@@ -16,6 +16,7 @@ class EngineRunResult:
 	config_id: str
 	mode_id: int
 	mode_name: str
+	# Raw stake input before applying mode wager_cost_multiplier.
 	stake_amount: float
 	total_wagers: int
 	wagers: tuple[EngineWagerRecord, ...]

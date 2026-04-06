@@ -182,6 +182,10 @@ def evaluate_wager(
 				rng=rng,
 			)
 			global_multiplier = finalized.updated_global_multiplier
+			if current_state_name == definition.free_state_name:
+				post_feature_remaining_rounds = max(0, free_remaining_before - 1 + finalized.bonus_rounds_awarded)
+			else:
+				post_feature_remaining_rounds = max(0, finalized.bonus_rounds_awarded)
 			rolls.append(
 				EngineRollRecord(
 					roll_id=roll_id,
@@ -191,7 +195,7 @@ def evaluate_wager(
 						board=board,
 						pending_round_multiplier=finalized.round_multiplier_total if finalized.round_multiplier_total > 0 else None,
 						feature_is_active=current_state_name == definition.free_state_name,
-						feature_remaining_rounds=free_remaining_before,
+						feature_remaining_rounds=post_feature_remaining_rounds,
 						feature_awarded_rounds=finalized.bonus_rounds_awarded,
 					),
 					roll_win=max(0.0, finalized.total_win - accumulated_round_win),

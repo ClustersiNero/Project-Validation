@@ -127,31 +127,51 @@ MULTIPLIER_DATA = {
 }
 
 # 虚拟实体条带
-# 字典编号用于区分不同的条带组、数量与后文Control字段xxxx相对应
-# 数组编号用于区分条带组组内编号、固定为6个[1~6]、对应游戏机台滚轴一共6列
-# 组内数值编号区分不同的实体图案、范围固定[1~11]、对应PAYTABLE字段下的1~11个字段、即对应蓝宝石图案 ~ 倍率图案
-# 条带内的图案具有上下的物理位置关系、而条带间的图案没有左右的物理位置关系；即：
-#   出现在同一条带的相邻上\下方位的其他图案、落在机台上时也具有相邻的上\下位置关系；
-#   条带落在机台上哪一条滚轴并不唯一确定、而是每次生成图案时抽取
-# 具体生成图案时:
-#   先确定使用的条带组（字典）
-#   再确定当前轴体使用的条带（数组）
-#       再从数组随机位置取出连续的若干个图案（数值1~11）
-#           当从条带中取出连续的若干个图案时，如果超过条带末尾，则从条带开头继续取，形成循环抽取
-#   再从剩下的条带组中抽取未使用过的条带（数组）、重复6次直到全部条带使用完毕
+# 字典编号用于区分不同的条带组、数量与后文实现配置字段相对应
+# 数组编号用于区分条带组内的不同条带、固定为6个[1~6]、对应机台一共6列
+# 组内数值范围固定[1~11]、对应PAYTABLE中的图案id
+#
+# 条带内图案具有上下物理位置关系；
+# 不同条带之间没有固定的左右物理位置关系。
+#
+# 具体生成流程：
+#   1. 先确定本round使用的条带组（strip set）
+#   2. 在该条带组内，将6条条带编号做一次随机打乱
+#   3. 打乱后的结果按列依次分配到6列，因此：
+#        - 同一round内，每列使用的条带互不重复
+#        - 同一round内，列与条带的对应关系在round开始时一次性确定
+#   4. 每列再从各自条带中的随机起点，循环截取连续若干个图案，组成初始board
+#   5. 若本round内发生消除补位，则继续复用当前round已经确定的条带组与列条带对应关系；
+#      refill不会重新选择条带组，也不会重新打乱列条带顺序
+#
+# 也就是说：
+#   - 不同round之间，列与条带的对应顺序可以不同
+#   - 同一round内，初始落板与后续refill使用的是同一套列条带映射
+
 # Virtual Reel Strips
-# Dictionary Index: Used to distinguish between different sets of reel strips; the quantity corresponds to the `xxxx` value in the subsequent `Control` field.
-# Array Index: Used to distinguish individual strips within a specific set; fixed at 6 indices [1–6], corresponding to the 6 columns (reels) on the gaming machine.
-# Value Index: Used to distinguish between different physical symbols; fixed range [1–11], corresponding to the 1–11 entries listed under the `PAYTABLE` field—specifically, ranging from the Sapphire symbol to the Multiplier symbol.
-# Symbols *within* a single strip possess a fixed vertical (up/down) physical positional relationship relative to one another; however, symbols *across* different strips possess no fixed horizontal (left/right) physical positional relationship. Specifically:
-#   Any symbols appearing in adjacent vertical positions (above or below one another) within the same strip will retain this adjacent vertical relationship when they land on the gaming machine's reels.
-#   The specific reel (column) onto which a given strip lands is not predetermined; instead, it is assigned randomly per roll (not fixed across wagers) symbols are generated.
-# The specific process for generating symbols is as follows:
-#   First, determine which set of reel strips (Dictionary) will be used.
-#   Next, determine which specific strip (Array) will be used for the current reel.
-#       Then, select a consecutive sequence of symbols (Values ​​1–11) starting from a random position within that strip.
-#           When selecting a consecutive sequence of symbols from a strip, if the selection extends beyond the end of the strip, the sequence wraps around and continues from the beginning of the strip (creating a cyclical selection).
-#   Finally, select an unused strip (Array) from the remaining set of strips; repeat this process 6 times until all strips have been utilized.
+# The outer dictionary key identifies a strip set.
+# The inner keys [1~6] identify the 6 strips inside that strip set, corresponding to the 6 board columns.
+# Symbol ids inside each strip map directly to PAYTABLE symbol ids.
+#
+# Symbols within a single strip preserve vertical adjacency.
+# Different strips do not have any fixed horizontal relationship before assignment to columns.
+#
+# Generation flow:
+#   1. First select the strip set for the current round.
+#   2. Then shuffle the 6 strip ids inside that strip set once.
+#   3. The shuffled order is assigned to the 6 columns in order, which means:
+#        - within the same round, each column uses a distinct strip
+#        - the column-to-strip mapping is fixed once at round start
+#   4. For each column, a random start position is chosen on its assigned strip,
+#      and a cyclic slice is taken to form the initial board
+#   5. If cascades/refills happen within the same round, the engine reuses the same
+#      round-selected strip set and the same column-to-strip mapping;
+#      refill does not reselect the strip set and does not reshuffle strip order
+#
+# In other words:
+#   - across different rounds, the column-to-strip order may differ
+#   - within the same round, the initial board and all refills use the same column-strip mapping
+
 STRIP_SETS  = {
     1 : {
         1: [6, 2, 3, 7, 5, 7, 4, 4, 4, 7, 1, 4, 7, 2, 5, 2, 2, 2, 8, 8, 1, 1, 6, 8, 1, 5, 1, 2, 4, 4, 7, 4, 4, 6, 3, 3, 5, 2, 3, 4, 5, 5, 1, 4, 4, 5, 1, 2, 2, 2, 1, 8, 8, 7, 1, 8, 9, 9, 4, 5, 4, 8, 5, 5, 2, 2, 2, 2, 6, 6, 3, 7, 7, 7, 2, 1, 9, 9, 1, 4, 6, 7, 9, 9, 3, 3, 2, 2, 2, 2, 3, 2, 5, 1, 8, 6, 6, 6, 8, 1, 7, 3, 1, 1, 3, 5, 5, 7, 1, 8, 8, 1, 1, 2, 6, 8, 3, 3, 3, 2, 8, 7, 7, 5, 6, 5, 5, 4, 1, 1, 5, 5, 5, 1, 1, 1, 3, 2, 4, 4, 5, 1, 2, 9, 9, 7, 5, 3, 3, 1, 1, 7, 4, 6, 5, 9, 9, 8, 8, 8, 3, 4, 3, 3, 3, 4, 6, 5, 4, 2, 3, 7, 4, 4, 8, 8, 7, 3, 6, 6, 3, 6, 3, 6, 6, 3, 6, 7, 7, 1, 2, 4, 1, 1, 9, 9, 6, 9, 3, 6],
