@@ -1,4 +1,4 @@
-# canonical_result.md (execution spec)
+# canonical_result_spec.md
 
 ## 0. Scope
 
@@ -13,7 +13,7 @@ It is **not documentation**, it is a **build contract**.
 ```python
 CanonicalResult = {
     "run": RunMeta,
-    "wagers": list[WagerRecord],
+    "bets": list[BetRecord],
     "summary": RunSummary
 }
 ```
@@ -32,8 +32,8 @@ RunMeta = {
 
     "mode": str,
     "seed": int,
-    "stake_amount": float,
-    "total_wagers": int,
+    "bet_amount": float,
+    "total_bets": int,
 
     "timestamp": str
 }
@@ -47,13 +47,13 @@ RunMeta = {
 
 ---
 
-## 3. WagerRecord (mandatory)
+## 3. BetRecord (mandatory)
 
 ```python
-WagerRecord = {
-    "wager_id": int,
+BetRecord = {
+    "bet_id": int,
 
-    "bet": float,
+    "bet_amount": float,
     "total_win": float,
 
     "is_hit": bool,
@@ -81,7 +81,7 @@ RoundRecord = {
 
 ### Rules
 
-- 1 wager = 1 complete top-level outcome unit
+- 1 bet = 1 complete top-level outcome unit
 - total_win MUST equal sum of round wins
 - For each round: roll_count MUST match len(rolls)
 
@@ -164,13 +164,13 @@ FeatureState = {
 RunSummary = {
     "total_bet": float,
     "total_win": float,
-    "wager_count": int
+    "bet_count": int
 }
 ```
 
 ### Rules
 
-- MUST be recomputable from wagers
+- MUST be recomputable from bets
 - MUST NOT be primary source
 
 ---
@@ -203,8 +203,8 @@ Canonical MUST NOT include:
 
 The following must hold:
 
-```
-(config, seed, engine_version) → identical CanonicalResult
+```python
+(config, seed, engine_version) -> identical CanonicalResult
 ```
 
 ---
@@ -213,7 +213,7 @@ The following must hold:
 
 Canonical MUST allow:
 
-- replay any wager
+- replay any bet
 - replay any round
 - replay any roll
 - reconstruct full state path
@@ -245,12 +245,38 @@ run_simulation(config, seed) -> CanonicalResult
 Before accepting a CanonicalResult:
 
 - [ ] run meta complete
-- [ ] wagers count matches total_wagers
-- [ ] round_id continuous per wager
+- [ ] bets count matches total_bets
+- [ ] round_id continuous per bet
 - [ ] roll_id continuous per round
 - [ ] accumulated_round_win correct
 - [ ] no forbidden fields
 - [ ] replay produces identical result
+
+---
+
+## 12. Naming Contract
+
+This project uses a **Bet-only** top-level naming system.
+
+Allowed top-level terms:
+
+- bet
+- bets
+- bet_id
+- bet_amount
+- total_bets
+- bet_count
+
+Forbidden parallel terms in canonical schema:
+
+- wager
+- wagers
+- wager_id
+- wager_amount
+- total_wagers
+- stake
+- stakes
+- stake_amount
 
 ---
 

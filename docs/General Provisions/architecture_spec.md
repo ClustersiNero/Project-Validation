@@ -1,15 +1,17 @@
-# architecture_v2.md
+# Architecture Specification
 
 ## Purpose
 
-This project is a **validation-oriented slot math system**, designed to make game behavior:
+This specification defines a **validation-oriented slot math architecture contract** for reproducible and inspectable outcome processing.
+
+The architecture is designed to make game behavior:
 
 - reproducible
 - inspectable
 - measurable
 - validation-ready
 
-It is not a simulation-only or reporting-first tool.
+It is not a simulation-only or reporting-first document.
 
 ---
 
@@ -19,7 +21,33 @@ It is not a simulation-only or reporting-first tool.
 
 Pipeline:
 
-config → engine → canonical result → metrics → validation → optional exports
+config -> engine -> canonical result -> metrics -> validation -> optional export
+
+---
+
+## Naming Contract (Bet-Only)
+
+This specification is Bet-only for top-level event naming.
+
+Required naming:
+- top-level unit: bet
+- hierarchy: Bet -> Round -> Roll
+- canonical top-level collection: bets
+- metrics sample unit: bet
+- validation sample unit: bet
+- amount field naming uses bet terms (for example: bet_amount)
+
+### Forbidden Parallel Terminology (Formal Terms)
+
+The following formal terms are forbidden in this specification:
+- wager
+- wagers
+- wager_id
+- wager_amount
+- total_wagers
+- stake
+- stakes
+- stake_amount
 
 ---
 
@@ -112,14 +140,14 @@ It must preserve both:
 - engine_version
 - mode
 - seed
-- stake_amount
-- total_wagers
+- bet_amount
+- total_bets
 - timestamp
 
-#### 2. Wager Records
+#### 2. Bet Records
 
-For each wager:
-- wager_id
+For each bet:
+- bet_id
 - total_bet
 - total_win
 - trigger_flags
@@ -127,7 +155,7 @@ For each wager:
 
 #### 3. Round / Roll State Transitions
 
-Each wager contains one or more rounds.
+Each bet contains one or more rounds.
 Each round contains ordered rolls.
 
 For each round:
@@ -150,13 +178,13 @@ For each roll:
 
 - total_bet
 - total_win
-- wager_count
+- bet_count
 
 ---
 
 ## Metrics Layer
 
-CanonicalResult uses a wager → rounds → rolls hierarchy.
+CanonicalResult uses a bet -> rounds -> rolls hierarchy.
 
 Input:
 - CanonicalResult
@@ -288,4 +316,4 @@ run_pipeline(config) -> PipelineArtifact
 
 Core flow:
 
-config → engine → canonical result → metrics → validation
+config -> engine -> canonical result -> metrics -> validation
