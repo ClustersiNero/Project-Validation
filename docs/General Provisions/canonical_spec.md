@@ -37,6 +37,7 @@ SimulationMetadata = {
     "mode": str,
     "seed": int,
     "bet_amount": float,
+    "bet_level": float,
     "total_bets": int,
     "timestamp": str,
 }
@@ -46,6 +47,8 @@ SimulationMetadata = {
 
 * `mode` records the entry mode of the bet execution.
 * `simulation_metadata` belongs to the simulation level, not the bet level.
+* bet_amount records the actual paid amount per bet
+* bet_level records the payout normalization base used for paytable evaluation
 
 ---
 
@@ -108,6 +111,7 @@ RoundRecord = {
 * `award_free_rounds` records the free rounds awarded by the current round
 * `scatter_win_amount` records the scatter win amount of the current round
 * `round_final_state` records the final state after the round is fully resolved
+* multiplier is applied on base_symbol_win_amount, which is derived from `bet_level`-based payout evaluation
 
 ## Round Execution Semantics
 
@@ -147,7 +151,7 @@ RollRecord = {
     "roll_final_state": object,
 
     "roll_multi_symbols_num": int,
-    "roll_multi_symbols_carry": list[float]
+    "roll_multi_symbols_carry": list[float],
     "roll_scatter_symbols_num": int,
 }
 ```
@@ -162,6 +166,7 @@ RollRecord = {
 * `roll_multi_symbols_carry` records the multiplier values of each multiplier symbol generated in the roll
 * `roll_scatter_symbols_num` records the number of scatter symbols generated in the roll
 * `roll_win_amount` records the base symbol win generated in the roll before round-level multiplier settlement
+* roll_win_amount is computed from paytable using `bet_level` but excludes any round-level multiplier application
 
 ## Roll Execution Semantics
 

@@ -37,7 +37,9 @@ Required:
 
 * unit name: `bet`
 * collection: `bets`
-* amount field: `bet_amount`
+
+* bet_amount = actual paid amount for this bet
+* bet_level  = payout normalization base (used for paytable and win multiple)
 
 Forbidden:
 
@@ -45,6 +47,21 @@ Forbidden:
 
   * `stake`
   * `wager`
+
+### Amount System Invariant
+
+The system uses a dual-base model:
+
+- bet_amount:
+  used for cost-based ratios (RTP, return)
+
+- bet_level:
+  used for all payout calculations (paytable, win multiple)
+
+All payout generation MUST use bet_level.
+All return-based metrics MUST use bet_amount.
+
+These two MUST NEVER be mixed.
 
 ---
 
@@ -160,7 +177,8 @@ The exact CanonicalResult field schema is defined by canonical_spec.md.
 - schema_version
 - mode
 - seed
-- bet_amount
+- bet_amount      (actual paid amount per bet)
+- bet_level       (payout normalization base)
 - total_bets
 - timestamp
 
@@ -397,6 +415,16 @@ run_pipeline(config) -> PipelineArtifact
 - no fairness proof via simulation alone
 - no live behavior prediction
 
+## Special Notes
+
+In buy_free mode:
+
+- bet_amount = 80 × base bet
+- bet_level = base bet
+
+This ensures:
+
+- cost-based metrics reflect actual payment
+- payout-based metrics remain comparable across modes
+
 ---
-
-

@@ -1,16 +1,16 @@
-# Wager mode configuration
-WAGER_MODE = {
+# Simulation configuration
+SIMULATION_MODE = {
     1 :{
         "mode_name": "normal",
-        "wager_cost_multiplier": 1.0,
+        "bet_cost_multiplier": 1.0,
     },
     2 :{
-        "mode_name": "feature_buy",
-        "wager_cost_multiplier": 80.0,
+        "mode_name": "buy_free",
+        "bet_cost_multiplier": 80.0,
     },
     3 :{
         "mode_name": "chance_increase",
-        "wager_cost_multiplier": 1.25,
+        "bet_cost_multiplier": 1.25,
     },
 }
 
@@ -112,8 +112,6 @@ PAYTABLE = {
     },
 }
 
-# 倍率图案携带数值与其数值权重组
-# 倍率数值是离散的、2~500共15个、权重组数量不定（最少1个）
 # Multiplier Pattern: Associated Values ​​and Weight Groups
 # The multiplier values ​​are discrete, comprising 15 distinct values ​​ranging from 2 to 500; the number of weight groups is variable (with a minimum of one).
 MULTIPLIER_DATA = {
@@ -125,28 +123,6 @@ MULTIPLIER_DATA = {
           4: [1087, 610, 377, 0,   0,   0,  0,  0,  0,  0,  0,  0,  0,   0,   0],
     }
 }
-
-# 虚拟实体条带
-# 字典编号用于区分不同的条带组、数量与后文实现配置字段相对应
-# 数组编号用于区分条带组内的不同条带、固定为6个[1~6]、对应机台一共6列
-# 组内数值范围固定[1~11]、对应PAYTABLE中的图案id
-#
-# 条带内图案具有上下物理位置关系；
-# 不同条带之间没有固定的左右物理位置关系。
-#
-# 具体生成流程：
-#   1. 先确定本round使用的条带组（strip set）
-#   2. 在该条带组内，将6条条带编号做一次随机打乱
-#   3. 打乱后的结果按列依次分配到6列，因此：
-#        - 同一round内，每列使用的条带互不重复
-#        - 同一round内，列与条带的对应关系在round开始时一次性确定
-#   4. 每列再从各自条带中的随机起点，循环截取连续若干个图案，组成初始board
-#   5. 若本round内发生消除补位，则继续复用当前round已经确定的条带组与列条带对应关系；
-#      refill不会重新选择条带组，也不会重新打乱列条带顺序
-#
-# 也就是说：
-#   - 不同round之间，列与条带的对应顺序可以不同
-#   - 同一round内，初始落板与后续refill使用的是同一套列条带映射
 
 # Virtual Reel Strips
 # The outer dictionary key identifies a strip set.
@@ -198,40 +174,6 @@ STRIP_SETS  = {
         6: [4, 1, 6, 6, 4, 3, 3, 6, 4, 7, 2, 5, 1, 9, 7, 7, 3, 8, 2, 5, 5, 2, 8, 8, 1, 5, 8, 3, 1, 1, 6, 6, 9, 2, 4, 4, 2, 7, 3, 5, 1, 7, 9, 9, 8, 2, 3, 2, 1, 4],
     },
 }
-
-# 游戏数值生成流程
-# 最外层字典编号1~3对应投注模式1~3（normal、feature_buy、chance_increase）
-# 首层字段'basic'和'free'对应基础游戏模式和免费游戏模式
-# 次层字段'round_strip_set_weights'和'round_multiplier_profile_weights'对应虚拟实体条带组的选择权重和倍率图案数值权重组的选择权重；
-# 完整游戏流程举例：
-#   游戏总是从basic模式开始
-#       当玩家投注后、系统根据投注模式（1~3）读取本字段内的1层对应字段、找到其下的‘basic'字段、
-#       从中找到'round_strip_set_weights'字段，并根据其数值随机出一个条带组编号（该结果在整个round内保持不变）
-#           如：投注模式1、便在IMPLEMENTATION_CONFIG[1]['basic']['round_strip_set_weights']中根据[90,10,0]的权重随机出一个条带组编号，如随机结果为1，则选择第1个条带组
-#       系统生成图案后、若有倍率图案，则根据相同路径下的'round_multiplier_profile_weights'字段中的权重随机出一个权重组（该结果在整个round内保持不变）
-#           如：继续上例、在IMPLEMENTATION_CONFIG[1]['basic']['round_multiplier_profile_weights']中的权重随机出一个权重组，如随机结果为3，则选择第3个权重组
-#       再根据所选权重组随机出一个倍率数值
-#           如：继续上例、从MULTIPLIER_DATA['weight'][3]中按权重随机选择一个倍率数值、如随机结果为5，则选择第五个倍率数值(6x)
-#       若游戏中奖、消除、还需要继续生成图案，则继续使用当前round已选定的条带组与倍率权重组进行后续图案生成，直到本轮round结束
-#   随后、若游戏结束，则进行结算，若命中free game触发条件，则进入免费游戏模式并以相同的流程进行游戏
-
-
-# Game Value Generation Process
-# The outermost dictionary keys (1–3) correspond to betting modes 1–3 (normal, feature_buy, chance_increase).
-# The first-level keys, 'basic' and 'free', correspond to the base game mode and the free game mode, respectively.
-# The second-level keys—'round_strip_set_weights' and 'round_multiplier_profile_weights'—correspond to the selection weights for the virtual reel strip groups and the selection weights for the multiplier symbol value weight groups, respectively.
-# Example of the Complete Game Flow:
-#   The game always begins in 'basic' mode.
-#       Once the player places a bet, the system—based on the selected betting mode (1–3)—accesses the corresponding first-level key within the data structure. It then locates the 'basic' key underneath it,
-#       finds the 'round_strip_set_weights' key within that section, and uses the associated values to randomly select a reel strip group ID (this selection remains fixed for the entire round).
-#           E.g.: For Betting Mode 1, the system uses the weights [90, 10, 0] found in `IMPLEMENTATION_CONFIG[1]['basic']['round_strip_set_weights']` to randomly select a strip group ID. If the random result is 1, the 1st strip group is selected.
-#       After the system generates the symbols, if any multiplier symbols are present, it uses the weights found in the 'round_multiplier_profile_weights' key (located at the same path) to randomly select a multiplier weight group (this selection remains fixed for the entire round).
-#           E.g.: Continuing the previous example, the system uses the weights in `IMPLEMENTATION_CONFIG[1]['basic']['round_multiplier_profile_weights']` to randomly select a weight group. If the random result is 3, the 3rd weight group is selected.
-#       Subsequently, the system uses the selected weight group to randomly select a specific multiplier value.
-#           E.g.: Continuing the previous example, the system randomly selects a multiplier value from `MULTIPLIER_DATA['weight'][3]` based on the defined weights. If the random result is 5, the fifth multiplier value (6x) is selected.
-#       If the game results in a win, triggers a symbol elimination, and requires further symbol generation,
-#       the system continues using the same reel strip group and multiplier profile selected at the start of the current round, until the round concludes.
-#   Subsequently, if the game session ends, the system proceeds to settle the winnings. If the trigger conditions for the Free Game mode are met, the game transitions into Free Game mode and continues according to the exact same process.
 
 IMPLEMENTATION_CONFIG = {
     1:{

@@ -12,12 +12,24 @@ This file defines the **execution flow of a single bet**.
 # 2. Inputs
 
 Engine receives:
-
-* normalized config
-* RNG (seeded)
-* bet_amount
+- normalized config
+- RNG (seeded)
+- bet_amount   (actual paid amount)
+- bet_level    (payout normalization base)
 
 All required game rules MUST be fully defined in normalized config.
+
+## Payout Contract (Critical)
+
+All payout evaluation MUST:
+
+- use bet_level as the normalization base
+- never use bet_amount in payout calculation
+
+bet_amount is strictly forbidden in:
+- paytable evaluation
+- symbol win calculation
+- multiplier application
 
 ---
 
@@ -142,6 +154,9 @@ Output MUST be sufficient for:
 The following must hold:
 
 (config, seed) -> identical execution result
+
+Payout normalization MUST be based on bet_level.
+Return-based metrics MUST be based on bet_amount.
 
 ---
 
