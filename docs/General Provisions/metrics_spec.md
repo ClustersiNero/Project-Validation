@@ -1,15 +1,15 @@
-# metrics_design.md
+# metrics_spec.md
 
 ## 0. Purpose
 
-This file defines the **metrics layer design** for the validation system.
+This file defines the **metrics layer specification** for the validation system.
 
 It specifies:
 
-- what to measure
-- how to structure metrics
-- what metrics are allowed to express
-- what metrics must NOT do
+* what to measure
+* how to structure metrics
+* what metrics are allowed to express
+* what metrics must NOT do
 
 This is a **computation layer**, not a validation layer.
 
@@ -21,14 +21,41 @@ This is a **computation layer**, not a validation layer.
 
 Rules:
 
-- metrics = descriptive only
-- no pass / fail logic
-- no thresholds
-- no interpretation of correctness
+* metrics = descriptive only
+* no pass / fail logic
+* no thresholds
+* no interpretation of correctness
 
 ---
 
-## 2. Input / Output
+## 2. Naming Contract (Bet-Only)
+
+This specification is Bet-only for top-level event naming.
+
+Required naming:
+
+* top-level unit: bet
+* hierarchy: Bet -> Round -> Roll
+* canonical top-level collection: bets
+* metrics sample unit: bet
+* amount field naming uses bet terms where top-level event amount is referenced
+
+### Forbidden Parallel Terminology (Formal Terms)
+
+The following formal terms are forbidden in this specification:
+
+* wager
+* wagers
+* wager_id
+* wager_amount
+* total_wagers
+* stake
+* stakes
+* stake_amount
+
+---
+
+## 3. Input / Output
 
 ### Input
 
@@ -36,6 +63,7 @@ CanonicalResult
 
 ### Output
 
+```python
 MetricsBundle = {
     "meta": MetricsMeta,
     "core": CoreMetrics,
@@ -43,172 +71,222 @@ MetricsBundle = {
     "tail": TailMetrics,
     "optional": OptionalMetrics
 }
+```
 
 ---
 
-## 3. MetricsMeta
+## 4. MetricsMeta
 
+```python
 MetricsMeta = {
     "run_id": str,
     "config_id": str,
+    "config_version": str,
     "engine_version": str,
-    "metric_version": str,
+    "schema_version": str,
 
-    "total_wagers": int,
+    "mode": str,
+    "seed": int,
+    "bet_amount": float,
+    "total_bets": int,
+    "timestamp": str,
+
     "total_bet": float,
     "total_win": float
 }
+```
 
 Rules:
 
-- MUST match CanonicalResult
-- MUST NOT introduce new semantics
+* MUST be a direct projection from CanonicalResult.run and CanonicalResult.summary
+* MUST NOT redefine metadata semantics
+* MUST NOT introduce metadata fields with no canonical source
+* Recomputable run-level summary fields are allowed as metadata convenience projection only.
+* Raw canonical records remain the primary source for downstream computation.
+
+Field semantics:
+
+* bet_amount = per-bet amount from CanonicalResult.run
+* total_bet = total bet amount across the full run
 
 ---
 
-## 4. Core Metrics
+## 5. Core Metrics
 
-### 4.1 Empirical RTP
+### 5.1 Empirical RTP
 
+```python
 empirical_rtp = total_win / total_bet
+```
 
 ---
 
-### 4.2 Hit Frequency
+### 5.2 Hit Frequency
 
-hit_frequency = number_of_hit_wagers / total_wagers
+```python
+hit_frequency = number_of_hit_bets / total_bets
+```
 
 Definition:
 
-- hit = total_win > 0
+* hit = total_win > 0
+* hit status MUST align with BetRecord.is_hit where BetRecord.is_hit = (total_win > 0)
 
 ---
 
-### 4.3 Average Win (per wager)
+### 5.3 Average Win (per bet)
 
-avg_win = total_win / total_wagers
+```python
+avg_win = total_win / total_bets
+```
+
+Definition:
+
+* avg_win means average win per bet
 
 ---
 
-### 4.4 Average Win (conditional)
+### 5.4 Average Win (conditional)
 
-avg_win_when_hit = total_win / number_of_hit_wagers
+```python
+avg_win_when_hit = total_win / number_of_hit_bets
+```
 
 ---
 
-## 5. Distribution Metrics
+## 6. Distribution Metrics
 
-### 5.1 Win Distribution (binned)
+### 6.1 Win Distribution (binned)
 
+```python
 win_distribution = {
     "0": count,
     "(0,1]": count,
     "(1,5]": count,
 }
+```
 
 Rules:
 
-- bins MUST be predefined
-- bins MUST be explicit (no dynamic grouping)
+* bins MUST be predefined
+* bins MUST be explicit (no dynamic grouping)
+* bin basis MUST be win multiple per bet: win_multiple = bet.total_win / bet.bet_amount
+* bin intervals MUST be applied to win_multiple values using the fixed interval labels shown above
 
 ---
 
-### 5.2 Quantiles
+### 6.2 Quantiles
 
+```python
 quantiles = {
     "p50": float,
     "p90": float,
     "p95": float,
     "p99": float
 }
+```
 
 ---
 
-### 5.3 Max Win
+### 6.3 Max Win
 
-max_win = max(wager.total_win)
-
----
-
-## 6. Tail Metrics
-
-### 6.1 Top-p win Contribution
-
-top_1pct_win_share = sum(top_1pct_win_contribution) / total_win
+```python
+max_win = max(bet.total_win for bet in bets)
+```
 
 ---
 
-### 6.2 Extreme Win Frequency
+## 7. Tail Metrics
 
-extreme_win_freq_p99 = count(wagers where win >= p99) / total_wagers
+### 7.1 Top-p Win Contribution
 
----
-
-## 7. Optional Metrics (Non-Core)
-
-### 7.1 Streak Metrics
-
-max_losing_streak  
-avg_losing_streak
+```python
+top_1pct_win_share = sum(win for win in top_1pct_winning_bets) / total_win
+```
 
 ---
 
-### 7.2 Mode-Level Metrics
+### 7.2 Extreme Win Frequency
 
-base_rtp  
-feature_rtp  
-feature_trigger_rate
-
----
-
-### 7.3 Round / Roll Metrics
-
-avg_rounds_per_wager
-avg_rolls_per_round
-avg_rolls_per_wager
-
-avg_rounds_per_feature
-avg_rolls_per_feature
-
-#### Definitions:
-wager = top-level bet event
-round = one independently settled round within a wager or feature
-roll = one board resolution / refill progression inside a round
+```python
+extreme_win_freq_p99 = count(bets where win >= p99) / total_bets
+```
 
 ---
 
-### 7.4 Round-Level Metrics
+## 8. Optional Metrics (Non-Core)
 
-avg_round_win
-avg_multiplier_per_feature_round
-max_round_multiplier
+### 8.1 Streak Metrics
+
+* max_losing_streak
+* avg_losing_streak
 
 ---
 
-## 8. Metric Categories
+### 8.2 Mode-Level Metrics
+
+* base_rtp
+* feature_rtp
+* feature_trigger_rate
+
+---
+
+### 8.3 Round / Roll Metrics
+
+* avg_rounds_per_bet
+
+* avg_rolls_per_round
+
+* avg_rolls_per_bet
+
+* avg_rounds_per_feature
+  - definition: total_feature_rounds / number_of_feature_triggers
+
+* avg_rolls_per_feature
+  - definition: total_feature_rolls / number_of_feature_triggers
+
+#### Definitions
+
+* bet = top-level event unit
+* round = one independently settled round within a bet or feature
+* roll = one board resolution / refill progression inside a round
+* feature trigger source = RollRecord.state_type == "feature_trigger"
+
+---
+
+### 8.4 Round-Level Metrics
+
+* avg_round_win
+* avg_multiplier_per_feature_round
+  - computed from RoundRecord.round_multiplier_total over feature rounds only
+* max_round_multiplier
+
+---
+
+## 9. Metric Categories
 
 ### Descriptive Metrics (this file)
 
-- RTP
-- hit frequency
-- distribution
-- tail metrics
+* RTP
+* hit frequency
+* distribution
+* tail metrics
 
 ### Validation Metrics (NOT here)
 
 Examples:
 
-- RTP deviation vs expected
-- CI checks
-- pass/fail
+* RTP deviation vs expected
+* CI checks
+* pass/fail
 
 ---
 
-## 9. Structural Rules
+## 10. Structural Rules
 
 ### Determinism
 
-CanonicalResult → MetricsBundle must be deterministic
+CanonicalResult -> MetricsBundle must be deterministic
 
 ---
 
@@ -216,13 +294,13 @@ CanonicalResult → MetricsBundle must be deterministic
 
 Metrics must allow:
 
-- high-level understanding
-- distribution inspection
-- tail inspection
+* high-level understanding
+* distribution inspection
+* tail inspection
 
 But NOT:
 
-- correctness judgement
+* correctness judgement
 
 ---
 
@@ -230,42 +308,45 @@ But NOT:
 
 Metrics MUST NOT:
 
-- infer hidden states
-- reconstruct missing data
-- depend on external context
+* infer hidden states
+* reconstruct missing data
+* depend on external context
 
 ---
 
 ### No Side Effects
 
-- must not modify canonical
-- must not depend on validation
+* must not modify canonical
+* must not depend on validation
 
 ---
 
-## 10. Minimal API
+## 11. Minimal API
 
+```python
 compute_metrics(result: CanonicalResult) -> MetricsBundle
+```
 
 ---
 
-## 11. Implementation Checklist
+## 12. Implementation Checklist
 
-- [ ] RTP matches summary
-- [ ] hit frequency correct
-- [ ] quantiles reproducible
-- [ ] distribution bins fixed
-- [ ] tail metrics consistent
-- [ ] no validation logic included
+* [ ] RTP consistent with recomputed totals
+* [ ] hit frequency correct
+* [ ] quantiles reproducible
+* [ ] distribution bins fixed
+* [ ] tail metrics consistent
+* [ ] no validation logic included
+* [ ] no forbidden top-level terminology remains
 
 ---
 
-## 12. Non-Goals
+## 13. Non-Goals
 
-- no fairness judgement
-- no RTP correctness claim
-- no player experience prediction
-- no adaptive interpretation
+* no fairness judgement
+* no RTP correctness claim
+* no player experience prediction
+* no adaptive interpretation
 
 ---
 
@@ -273,8 +354,8 @@ compute_metrics(result: CanonicalResult) -> MetricsBundle
 
 Metrics layer:
 
-- transforms CanonicalResult into structured observations
-- exposes distribution and tail behavior
-- remains strictly neutral
+* transforms CanonicalResult into structured observations
+* exposes distribution and tail behavior
+* remains strictly neutral
 
-It is the **only input** to validation, but never performs validation itself.
+It is a required quantitative input to statistical and baseline regression validation, but never performs validation itself.

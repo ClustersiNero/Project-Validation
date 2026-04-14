@@ -1,6 +1,4 @@
-# Architecture Specification
-
-## Purpose
+# Purpose
 
 This specification defines a **validation-oriented slot math architecture contract** for reproducible and inspectable outcome processing.
 
@@ -15,7 +13,7 @@ It is not a simulation-only or reporting-first document.
 
 ---
 
-## Core Principle
+# Core Principle
 
 > Outcomes must be generated first, then measured, then validated.
 
@@ -25,55 +23,72 @@ config -> engine -> canonical result -> metrics -> validation -> optional export
 
 ---
 
-## Naming Contract (Bet-Only)
+# Naming Contract (Bet-Only, Hierarchical)
 
-This specification is Bet-only for top-level event naming.
+This specification enforces a **strict hierarchical naming system**:
 
-Required naming:
-- top-level unit: bet
-- hierarchy: Bet -> Round -> Roll
-- canonical top-level collection: bets
-- metrics sample unit: bet
-- validation sample unit: bet
-- amount field naming uses bet terms (for example: bet_amount)
+**Bet → Round → Roll**
 
-### Forbidden Parallel Terminology (Formal Terms)
+All naming MUST align with this hierarchy.
 
-The following formal terms are forbidden in this specification:
-- wager
-- wagers
-- wager_id
-- wager_amount
-- total_wagers
-- stake
-- stakes
-- stake_amount
+## 1. Bet Level (Top-Level Unit)
 
----
+Required:
 
-## High-Level Architecture
+* unit name: `bet`
+* collection: `bets`
+* amount field: `bet_amount`
 
-```
-CLI
-  ↓
-Config
-  ↓
-Engine
-  ↓
-Canonical Result
-  ↓
-Metrics
-  ↓
-Validation
-  ↓
-Optional Export
-```
+Forbidden:
+
+* any alternative concepts representing the same level, including:
+
+  * `stake`
+  * `wager`
 
 ---
 
-## Layer Definitions
+## 2. Round Level (Within Bet)
 
-### 1. CLI / Runner
+Definition:
+
+* A `round` is a sub-unit within a `bet`
+
+Forbidden:
+
+* any naming that breaks hierarchy or reuses other layers, including:
+
+  * `spin`
+  * `bet`
+
+---
+
+## 3. Roll Level (Within Round)
+
+Definition:
+
+* A `roll` is a sub-unit within a `round`
+
+Forbidden:
+
+* any naming that overlaps with higher or ambiguous layers, including:
+
+  * `round`
+  * `step`
+
+---
+
+### Global Rule
+
+* Naming MUST be **hierarchy-consistent and non-overlapping**
+* Each layer represents a **unique semantic level**
+* Parallel terminology across layers is strictly prohibited
+
+---
+
+# Layer Definitions
+
+## 1. CLI / Runner
 
 Input:
 - runtime parameters
@@ -87,7 +102,7 @@ Responsibilities:
 
 ---
 
-### 2. Config
+## 2. Config
 
 Input:
 - game parameters
@@ -102,7 +117,7 @@ Responsibilities:
 
 ---
 
-### 3. Engine
+## 3. Engine
 
 Input:
 - config
@@ -122,7 +137,7 @@ Rules:
 
 ---
 
-## Canonical Result Schema
+## 4. Canonical Result
 
 The canonical result is the **single source of truth** for downstream processing.
 
@@ -130,61 +145,109 @@ It must preserve both:
 - final outcomes
 - round / roll-level state transitions (if applicable)
 
-### Structure
+Canonical MUST NOT contain interpretive metrics or validation outputs.
+This file defines layer responsibilities and cross-layer contracts.
+The exact CanonicalResult field schema is defined by canonical_spec.md.
 
-#### 1. Run Metadata
+### 4.1 Schema
 
-- run_id
+#### 4.1.1 Simulation Metadata
+
+- simulation_id
 - config_id
 - config_version
 - engine_version
+- schema_version
 - mode
 - seed
 - bet_amount
 - total_bets
 - timestamp
 
-#### 2. Bet Records
+Each simulation contains one or more bets.
+mode indicates the entry mode of the bet (e.g. normal, buy_free, chance_increase)
 
-For each bet:
+#### 4.1.2 Result Records
+
+##### 4.1.2.1 Bet Records
+
+###### 4.1.2.1.1 Field Name
+
 - bet_id
-- total_bet
-- total_win
-- trigger_flags
-- summary result
+- bet_win_amount
+- basic_win_amount
+- free_win_amount
+- round_count
+- bet_final_state
+- rounds
 
-#### 3. Round / Roll State Transitions
+###### 4.1.2.1.2 Structure
 
-Each bet contains one or more rounds.
-Each round contains ordered rolls.
-
-For each round:
-- round_id
-- round_type
-- round_total_win
-- roll_count
-- rolls
-
-For each roll:
-- roll_id
-- board / symbols
-- roll_win
-- cascade / refill result
-- feature-related events
-- reel_set_id
-- multiplier_profile_id
-
-#### 4. Aggregated Summary (optional)
-
-- total_bet
-- total_win
-- bet_count
+Each bet record contains one or more round records in `rounds`.
 
 ---
 
-## Metrics Layer
+##### 4.1.2.2 Round Records
 
-CanonicalResult uses a bet -> rounds -> rolls hierarchy.
+###### 4.1.2.2.1 Field Name
+
+- round_id
+- round_type
+- round_win_amount
+
+- base_symbol_win_amount
+- global_multiplier
+- round_multiplier_increment
+- round_total_multiplier
+
+- round_scatter_increment
+- award_free_rounds
+- scatter_win_amount
+
+- roll_count
+- round_final_state
+- rolls
+
+###### 4.1.2.2.2 Structure
+
+Each round record belongs to one bet record.
+Each round record contains one or more roll records in `rolls`.
+
+---
+
+##### 4.1.2.3 Roll Records
+
+###### 4.1.2.3.1 Field Name
+
+- roll_id
+- roll_win_amount
+- roll_type
+
+- reel_set_id
+- multiplier_profile_id
+
+- roll_filled_state
+- roll_final_state
+
+- roll_multi_symbols_num
+- roll_multi_symbols_carry
+
+- roll_scatter_symbols_num
+
+###### 4.1.2.3.2 Structure
+
+Each roll record belongs to one round record.
+
+### 4.2 Invariants
+
+- deterministic
+- complete
+- neutral
+- no validation or interpretive data
+
+---
+
+## 5. Metrics Layer
 
 Input:
 - CanonicalResult
@@ -203,12 +266,19 @@ Core metrics:
 - optional feature metrics
 
 Rule:
+- Metrics MUST NOT modify canonical data
 - no pass/fail logic here
+- Metrics MUST compute all aggregates from raw canonical data
+
 ---
 
-## Validation Structure
+## 6. Validation
 
-### 1. Structural Validation
+### 6.1 Structure
+
+Validation MUST ensure schema compatibility before any evaluation.
+
+#### 6.1.1 Structural Validation
 
 Input:
 - CanonicalResult
@@ -218,13 +288,21 @@ Responsibilities:
 - verify structural correctness
 - verify mapping consistency
 - detect logical violations
+- verify schema_version compatibility
+- verify engine_version consistency
+- verify config_version consistency
+
+Examples:
+- round_count must equal the number of recorded rounds
+- payout aggregates must match the sum of their child records
+- referenced IDs must exist in config
 
 Output:
 - spec validation report
 
 ---
 
-### 2. Statistical Validation
+#### 6.1.2 Statistical Validation
 
 Input:
 - MetricsBundle
@@ -239,7 +317,7 @@ Output:
 
 ---
 
-### 3. Baseline Regression Validation
+#### 6.1.3 Baseline Regression Validation
 
 Input:
 - MetricsBundle
@@ -254,7 +332,7 @@ Output:
 
 ---
 
-## Validation Output
+### 6.2 Output
 
 All checks produce:
 
@@ -266,6 +344,13 @@ All checks produce:
 
 ---
 
+
+# Pipeline Interface & Artifact
+
+This section defines both:
+- the output structure of the pipeline
+- the minimal callable interfaces
+
 ## Pipeline Artifact
 
 ```python
@@ -273,17 +358,19 @@ PipelineArtifact = {
     canonical_result,
     metrics_bundle,
     validation_report,
-    run_metadata,
     optional_export_refs
 }
 ```
+
+Rule:
+- simulation_metadata MUST be sourced from canonical_result
 
 ---
 
 ## Minimal Core Interfaces
 
 ```python
-run_simulation(config) -> CanonicalResult
+run_simulation(config, seed) -> CanonicalResult
 
 compute_metrics(result) -> MetricsBundle
 
@@ -294,14 +381,14 @@ run_pipeline(config) -> PipelineArtifact
 
 ---
 
+# System Constraints
+
 ## Dependency Rules
 
 - engine does not depend on metrics or validation
 - metrics does not depend on validation
 - validation does not modify upstream data
 - export does not affect core logic
-
----
 
 ## Non-Goals
 
@@ -312,8 +399,4 @@ run_pipeline(config) -> PipelineArtifact
 
 ---
 
-## Summary
 
-Core flow:
-
-config -> engine -> canonical result -> metrics -> validation

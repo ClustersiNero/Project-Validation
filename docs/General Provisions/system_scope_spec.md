@@ -129,7 +129,7 @@ This boundary must stay explicit.
 ### Live behavior validation answers:
 
 * How do real players actually behave?
-* Do players change stake size, session length, or mode preference?
+* Do players change bet size, session length, or mode preference?
 * Does the game perform well in retention, engagement, and monetization?
 
 The first belongs to this system.
