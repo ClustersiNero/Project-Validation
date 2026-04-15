@@ -219,8 +219,6 @@ BetMetrics = {
 
 ### 6.1.1 Empirical RTP
 
-Level: `Bet`
-
 ```python
 empirical_rtp = total_bet_win_amount / total_bet_amount
 ```
@@ -234,15 +232,11 @@ total_bet_amount = total_bets * bet_amount
 
 ### 6.1.2 Basic RTP Contribution
 
-Level: `Bet`
-
 ```python
 basic_rtp = sum(bet.basic_win_amount for bet in bets) / total_bet_amount
 ```
 
 ### 6.1.3 Free RTP Contribution
-
-Level: `Bet`
 
 ```python
 free_rtp = sum(bet.free_win_amount for bet in bets) / total_bet_amount
@@ -250,23 +244,17 @@ free_rtp = sum(bet.free_win_amount for bet in bets) / total_bet_amount
 
 ### 6.1.4 Bet Hit Frequency
 
-Level: `Bet`
-
 ```python
 bet_hit_frequency = count(bet.bet_win_amount > 0) / total_bets
 ```
 
 ### 6.1.5 Average Bet Win
 
-Level: `Bet`
-
 ```python
 avg_bet_win_amount = sum(bet.bet_win_amount for bet in bets) / total_bets
 ```
 
 ### 6.1.6 Average Bet Win When Hit
-
-Level: `Bet`
 
 ```python
 avg_bet_win_amount_when_hit =
@@ -276,8 +264,6 @@ avg_bet_win_amount_when_hit =
 
 ### 6.1.7 Basic Win Share of Total Bet Win
 
-Level: `Bet`
-
 ```python
 basic_win_share =
     sum(bet.basic_win_amount for bet in bets)
@@ -285,8 +271,6 @@ basic_win_share =
 ```
 
 ### 6.1.8 Free Win Share of Total Bet Win
-
-Level: `Bet`
 
 ```python
 free_win_share =
@@ -298,19 +282,16 @@ free_win_share =
 
 ### 6.2.1 Bet Win Amount Distribution
 
-Level: `Bet`
-
 Distribution input:
 
 ```python
-[bet.bet_win_amount for bet in bets]
+bet_win_amount_distribution = 
+    [bet.bet_win_amount for bet in bets]
 ```
 
 This distribution is expressed on absolute win amount.
 
 ### 6.2.2 Bet Win Multiple Distribution
-
-Level: `Bet`
 
 ```python
 bet_win_multiple = bet.bet_win_amount / bet_level
@@ -321,14 +302,13 @@ This represents normalized payout multiple relative to bet_level.
 Distribution input:
 
 ```python
-[bet.bet_win_amount / bet_level for bet in bets]
+bet_win_multiple_distribution =
+    [bet.bet_win_amount / bet_level for bet in bets]
 ```
 
 This distribution is the preferred normalized bet-level distribution basis.
 
 ### 6.2.3 Bet Win Multiple Quantiles
-
-Level: `Bet`
 
 Typical outputs may include:
 
@@ -339,20 +319,17 @@ p50, p90, p95, p99
 Computed from:
 
 ```python
-[bet.bet_win_amount / bet_level for bet in bets]
+bet_win_multiple_quantiles =
+    [bet.bet_win_amount / bet_level for bet in bets]
 ```
 
 ### 6.2.4 Maximum Bet Win Amount
-
-Level: `Bet`
 
 ```python
 max_bet_win_amount = max(bet.bet_win_amount for bet in bets)
 ```
 
 ### 6.2.5 Maximum Bet Win Multiple
-
-Level: `Bet`
 
 ```python
 max_bet_win_multiple = max(bet.bet_win_amount / bet_level for bet in bets)
@@ -363,8 +340,6 @@ max_bet_win_multiple = max(bet.bet_win_amount / bet_level for bet in bets)
 Tail metrics remain descriptive and distribution-based.
 
 ### 6.3.1 Top-p Bet Win Share
-
-Level: `Bet`
 
 For a selected top fraction `p` of winning bets:
 
@@ -383,12 +358,11 @@ The selected reporting set must be explicitly named in implementation output.
 
 ### 6.3.2 Bet Win Multiple Tail Quantiles
 
-Level: `Bet`
-
 Reported from the upper tail of:
 
 ```python
-[bet.bet_win_amount / bet_level for bet in bets]
+bet_win_multiple_tail_quantiles = 
+    [bet.bet_win_amount / bet_level for bet in bets]
 ```
 
 Examples:
@@ -402,25 +376,20 @@ These are descriptive tail location metrics.
 
 ### 6.4.1 Average Rounds per Bet
 
-Level: `Bet`
-
 ```python
 avg_round_count_per_bet = sum(bet.round_count for bet in bets) / total_bets
 ```
 
 ### 6.4.2 Round Count Distribution per Bet
 
-Level: `Bet`
-
 Distribution input:
 
 ```python
-[bet.round_count for bet in bets]
+round_count_distribution_per_bet =
+    [bet.round_count for bet in bets]
 ```
 
 ### 6.4.3 Free-Containing Bet Frequency
-
-Level: `Bet`
 
 A bet contains free rounds if at least one round in rounds has round_type == "free"
 
@@ -439,8 +408,6 @@ These metrics describe spread and concentration only.
 
 ### 6.5.1 Bet Win Multiple Mean
 
-Level: `Bet`
-
 ```python
 mean_bet_win_multiple =
     sum(bet.bet_win_amount / bet_level for bet in bets) / total_bets
@@ -448,22 +415,20 @@ mean_bet_win_multiple =
 
 ### 6.5.2 Bet Win Multiple Variance
 
-Level: `Bet`
-
 Computed from:
 
 ```python
-[bet.bet_win_amount / bet_level for bet in bets]
+bet_win_multipler_variance =
+    [bet.bet_win_amount / bet_level for bet in bets]
 ```
 
 ### 6.5.3 Bet Win Multiple Standard Deviation
 
-Level: `Bet`
-
 Computed from:
 
 ```python
-[bet.bet_win_amount / bet_level for bet in bets]
+bet_win_multiple_standard_deviation =
+    [bet.bet_win_amount / bet_level for bet in bets]
 ```
 
 These are descriptive volatility-related metrics only.
@@ -490,8 +455,6 @@ RoundMetrics = {
 
 ### 7.1.1 Average Round Win Amount
 
-Level: `Round`
-
 ```python
 avg_round_win_amount =
     sum(round.round_win_amount for all rounds)
@@ -500,27 +463,21 @@ avg_round_win_amount =
 
 ### 7.1.2 Round Hit Frequency
 
-Level: `Round`
-
 ```python
 round_hit_frequency =
     count(round.round_win_amount > 0)
     / total_rounds
 ```
 
-### 7.1.3 Pure Base Symbol Win
-
-Level: `Round`
+### 7.1.3 Base Symbol Win Amount
 
 ```python
-avg_pure_base_symbol_win_amount_per_round =
+avg_base_symbol_win_amount_per_round =
     sum(round.base_symbol_win_amount for all rounds)
     / total_rounds
 ```
 
 ### 7.1.4 Multiplier Contribution
-
-Level: `Round`
 
 ```python
 avg_multiplier_contribution_per_round =
@@ -532,8 +489,6 @@ avg_multiplier_contribution_per_round =
 ```
 
 ### 7.1.5 Average Scatter Win Amount per Round
-
-Level: `Round`
 
 ```python
 avg_scatter_win_amount_per_round =
@@ -551,15 +506,11 @@ round.round_type == "basic"
 
 ### 7.2.1 Basic Round Count
 
-Level: `Round`
-
 ```python
 basic_round_count = count(round.round_type == "basic")
 ```
 
 ### 7.2.2 Average Basic Round Win Amount
-
-Level: `Round`
 
 ```python
 avg_basic_round_win_amount =
@@ -569,8 +520,6 @@ avg_basic_round_win_amount =
 
 ### 7.2.3 Basic Round Hit Frequency
 
-Level: `Round`
-
 ```python
 basic_round_hit_frequency =
     count(round.round_win_amount > 0 for basic rounds)
@@ -579,8 +528,6 @@ basic_round_hit_frequency =
 
 ### 7.2.4 Average Basic Scatter Increment
 
-Level: `Round`
-
 ```python
 avg_basic_round_scatter_increment =
     sum(round.round_scatter_increment for basic rounds)
@@ -588,8 +535,6 @@ avg_basic_round_scatter_increment =
 ```
 
 ### 7.2.5 Average Awarded Free Rounds from Basic Rounds
-
-Level: `Round`
 
 ```python
 avg_award_free_rounds_from_basic_round =
@@ -607,15 +552,11 @@ round.round_type == "free"
 
 ### 7.3.1 Free Round Count
 
-Level: `Round`
-
 ```python
 free_round_count = count(round.round_type == "free")
 ```
 
 ### 7.3.2 Average Free Round Win Amount
-
-Level: `Round`
 
 ```python
 avg_free_round_win_amount =
@@ -625,8 +566,6 @@ avg_free_round_win_amount =
 
 ### 7.3.3 Free Round Hit Frequency
 
-Level: `Round`
-
 ```python
 free_round_hit_frequency =
     count(round.round_win_amount > 0 for free rounds)
@@ -635,8 +574,6 @@ free_round_hit_frequency =
 
 ### 7.3.4 Average Free Scatter Increment
 
-Level: `Round`
-
 ```python
 avg_free_round_scatter_increment =
     sum(round.round_scatter_increment for free rounds)
@@ -644,8 +581,6 @@ avg_free_round_scatter_increment =
 ```
 
 ### 7.3.5 Average Awarded Free Rounds from Free Rounds
-
-Level: `Round`
 
 ```python
 avg_award_free_rounds_from_free_round =
@@ -662,8 +597,6 @@ All metrics are partitioned by `round_type` where relevant, to reflect distinct 
 
 ### 7.4.1 Multiplier Increment Frequency (All Rounds)
 
-Level: `Round`
-
 ```python
 multiplier_increment_frequency =
     count(round.round_multiplier_increment > 0)
@@ -671,8 +604,6 @@ multiplier_increment_frequency =
 ```
 
 ### 7.4.2 Multiplier Increment Frequency (Basic Rounds)
-
-Level: `Round`
 
 ```python
 basic_round_multiplier_increment_frequency =
@@ -682,8 +613,6 @@ basic_round_multiplier_increment_frequency =
 
 ### 7.4.3 Multiplier Increment Frequency (Free Rounds)
 
-Level: `Round`
-
 ```python
 free_round_multiplier_increment_frequency =
     count(round.round_multiplier_increment > 0 for free rounds)
@@ -691,8 +620,6 @@ free_round_multiplier_increment_frequency =
 ```
 
 ### 7.4.4 Average Multiplier Increment (All Rounds)
-
-Level: `Round`
 
 ```python
 avg_round_multiplier_increment =
@@ -702,8 +629,6 @@ avg_round_multiplier_increment =
 
 ### 7.4.5 Average Multiplier Increment (Basic Rounds)
 
-Level: `Round`
-
 ```python
 avg_basic_round_multiplier_increment =
     sum(round.round_multiplier_increment for basic rounds)
@@ -711,8 +636,6 @@ avg_basic_round_multiplier_increment =
 ```
 
 ### 7.4.6 Average Multiplier Increment (Free Rounds)
-
-Level: `Round`
 
 ```python
 avg_free_round_multiplier_increment =
@@ -722,16 +645,12 @@ avg_free_round_multiplier_increment =
 
 ### 7.4.7 Maximum Multiplier Increment
 
-Level: `Round`
-
 ```python
 max_round_multiplier_increment =
     max(round.round_multiplier_increment for all rounds)
 ```
 
 ### 7.4.8 Average Round Total Multiplier (All Rounds)
-
-Level: `Round`
 
 ```python
 avg_round_total_multiplier =
@@ -741,8 +660,6 @@ avg_round_total_multiplier =
 
 ### 7.4.9 Average Round Total Multiplier (Basic Rounds)
 
-Level: `Round`
-
 ```python
 avg_basic_round_total_multiplier =
     sum(round.round_total_multiplier for basic rounds)
@@ -750,8 +667,6 @@ avg_basic_round_total_multiplier =
 ```
 
 ### 7.4.10 Average Round Total Multiplier (Free Rounds)
-
-Level: `Round`
 
 ```python
 avg_free_round_total_multiplier =
@@ -761,16 +676,12 @@ avg_free_round_total_multiplier =
 
 ### 7.4.11 Maximum Round Total Multiplier
 
-Level: `Round`
-
 ```python
 max_round_total_multiplier =
     max(round.round_total_multiplier for all rounds)
 ```
 
 ### 7.4.12 Average Global Multiplier at Free Round Start
-
-Level: `Round`
 
 Global multiplier accumulation is only meaningful in free rounds.
 
@@ -782,8 +693,6 @@ avg_global_multiplier_at_free_round_start =
 
 ### 7.4.13 Maximum Global Multiplier
 
-Level: `Round`
-
 ```python
 max_global_multiplier =
     max(round.global_multiplier for all rounds)
@@ -791,16 +700,19 @@ max_global_multiplier =
 
 ### 7.4.14 Round Total Multiplier Distribution (All Rounds)
 
-Level: `Round`
-
 ```python
 round_total_multiplier_distribution_all_rounds =
     [round.round_total_multiplier for round in all_rounds]
 ```
 
-### 7.4.15 Round Total Multiplier Distribution (Free Rounds)
+### 7.4.15 Round Total Multiplier Distribution (Basic Rounds)
 
-Level: `Round`
+```python
+round_total_multiplier_distribution_basic_rounds =
+    [round.round_total_multiplier for round in basic_rounds]
+```
+
+### 7.4.16 Round Total Multiplier Distribution (Free Rounds)
 
 ```python
 round_total_multiplier_distribution_free_rounds =
@@ -809,134 +721,285 @@ round_total_multiplier_distribution_free_rounds =
 
 ---
 
+
 ## 7.5 Round Scatter Metrics
 
-These metrics use only `round_scatter_increment`, `award_free_rounds`, and `scatter_win_amount`.
-
-### 7.5.1 Average Scatter Symbols per Round
-
-Level: `Round`
+### 7.5.1 Average Scatter Increment (All Rounds)
 
 ```python
-avg_round_scatter_increment =
+avg_round_scatter_increment_all_rounds =
     sum(round.round_scatter_increment for all rounds)
     / total_rounds
 ```
 
-### 7.5.2 Scatter Win Frequency by Round
 
-Level: `Round`
+
+### 7.5.2 Average Scatter Increment (Basic Rounds)
 
 ```python
-round_scatter_win_frequency =
+avg_round_scatter_increment_basic_rounds =
+    sum(round.round_scatter_increment for basic rounds)
+    / basic_round_count
+```
+
+### 7.5.3 Average Scatter Increment (Free Rounds)
+
+```python
+avg_round_scatter_increment_free_rounds =
+    sum(round.round_scatter_increment for free rounds)
+    / free_round_count
+```
+
+### 7.5.4 Scatter Win Frequency (All Rounds)
+
+```python
+scatter_win_frequency_all_rounds =
     count(round.scatter_win_amount > 0)
     / total_rounds
 ```
 
-### 7.5.3 Average Scatter Win Amount by Round
-
-Level: `Round`
+### 7.5.5 Scatter Win Frequency (Basic Rounds)
 
 ```python
-avg_round_scatter_win_amount =
+scatter_win_frequency_basic_rounds =
+    count(round.scatter_win_amount > 0 for basic rounds)
+    / basic_round_count
+```
+
+### 7.5.6 Scatter Win Frequency (Free Rounds)
+
+```python
+scatter_win_frequency_free_rounds =
+    count(round.scatter_win_amount > 0 for free rounds)
+    / free_round_count
+```
+
+### 7.5.7 Average Scatter Win Amount (All Rounds)
+
+```python
+avg_scatter_win_amount_all_rounds =
     sum(round.scatter_win_amount for all rounds)
     / total_rounds
 ```
 
-### 7.5.4 Free-Round Award Frequency
-
-Level: `Round`
+### 7.5.8 Average Scatter Win Amount (Basic Rounds)
 
 ```python
-award_free_round_frequency =
+avg_scatter_win_amount_basic_rounds =
+    sum(round.scatter_win_amount for basic rounds)
+    / basic_round_count
+```
+
+### 7.5.9 Average Scatter Win Amount (Free Rounds)
+
+```python
+avg_scatter_win_amount_free_rounds =
+    sum(round.scatter_win_amount for free rounds)
+    / free_round_count
+```
+
+### 7.5.10 Free-Round Award Frequency (All Rounds)
+
+```python
+award_free_round_frequency_all_rounds =
     count(round.award_free_rounds > 0)
     / total_rounds
 ```
 
-### 7.5.5 Average Awarded Free Rounds per Awarding Round
-
-Level: `Round`
+### 7.5.11 Free-Round Award Frequency (Basic Rounds)
 
 ```python
-avg_awarded_free_rounds_per_awarding_round =
-    sum(round.award_free_rounds for rounds where round.award_free_rounds > 0)
-    / count(round.award_free_rounds > 0)
+award_free_round_frequency_basic_rounds =
+    count(round.award_free_rounds > 0 for basic rounds)
+    / basic_round_count
 ```
 
-### 7.5.6 Average Awarded Free Rounds per Round
-
-Level: `Round`
+### 7.5.12 Free-Round Award Frequency (Free Rounds)
 
 ```python
-avg_awarded_free_rounds_per_round =
-    sum(round.award_free_rounds for all rounds)
+award_free_round_frequency_free_rounds =
+    count(round.award_free_rounds > 0 for free rounds)
+    / free_round_count
+```
+
+### 7.5.13 Free-Round Award Frequency (All Rounds)
+
+```python
+award_free_round_frequency_all_rounds =
+    count(round.award_free_rounds > 0 for all rounds)
     / total_rounds
 ```
 
+---
+
 ## 7.6 Round Distribution Metrics
 
-### 7.6.1 Round Win Amount Distribution
-
-Level: `Round`
-
-Distribution input:
+### 7.6.1 Round Win Amount Distribution (All Rounds)
 
 ```python
-[round.round_win_amount for all rounds]
+round_win_amount_distribution_all_rounds =
+    [round.round_win_amount for all rounds]
 ```
 
-### 7.6.2 Base Symbol Win Amount Distribution
-
-Level: `Round`
-
-Distribution input:
+### 7.6.2 Round Win Amount Distribution (Basic Rounds)
 
 ```python
-[round.base_symbol_win_amount for all rounds]
+round_win_amount_distribution_basic_rounds =
+    [round.round_win_amount for basic rounds]
 ```
 
-### 7.6.3 Scatter Win Amount Distribution
-
-Level: `Round`
-
-Distribution input:
+### 7.6.3 Round Win Amount Distribution (Free Rounds)
 
 ```python
-[round.scatter_win_amount for all rounds]
+round_win_amount_distribution_free_rounds =
+    [round.round_win_amount for free rounds]
 ```
 
-### 7.6.4 Round Total Multiplier Distribution
-
-Level: `Round`
-
-Distribution input:
+### 7.6.4 Base Symbol Win Amount Distribution (All Rounds)
 
 ```python
-[round.round_total_multiplier for all rounds]
+base_symbol_win_amount_distribution_all_rounds =
+    [round.base_symbol_win_amount for all rounds]
+```
+
+### 7.6.5 Base Symbol Win Amount Distribution (Basic Rounds)
+
+```python
+base_symbol_win_amount_distribution_basic_rounds =
+    [round.base_symbol_win_amount for basic rounds]
+```
+
+### 7.6.6 Base Symbol Win Amount Distribution (Free Rounds)
+
+```python
+base_symbol_win_amount_distribution_free_rounds =
+    [round.base_symbol_win_amount for free rounds]
+```
+
+### 7.6.7 Multiplier Contribution Distribution (All Rounds)
+
+```python
+multiplier_contribution_distribution_all_rounds =
+    [
+        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
+        for all rounds
+    ]
+```
+
+### 7.6.8 Multiplier Contribution Distribution (Basic Rounds)
+
+```python
+multiplier_contribution_distribution_basic_rounds =
+    [
+        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
+        for basic rounds
+    ]
+```
+
+### 7.6.9 Multiplier Contribution Distribution (Free Rounds)
+
+```python
+multiplier_contribution_distribution_free_rounds =
+    [
+        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
+        for free rounds
+    ]
+```
+
+### 7.6.10 Scatter Win Amount Distribution (All Rounds)
+
+```python
+scatter_win_amount_distribution_all_rounds =
+    [round.scatter_win_amount for all rounds]
+```
+
+### 7.6.11 Scatter Win Amount Distribution (Basic Rounds)
+
+```python
+scatter_win_amount_distribution_basic_rounds =
+    [round.scatter_win_amount for basic rounds]
+```
+
+### 7.6.12 Scatter Win Amount Distribution (Free Rounds)
+
+```python
+scatter_win_amount_distribution_free_rounds =
+    [round.scatter_win_amount for free rounds]
+```
+
+### 7.6.13 Round Total Multiplier Distribution (All Rounds)
+
+```python
+round_total_multiplier_distribution_all_rounds =
+    [round.round_total_multiplier for all rounds]
+```
+
+### 7.6.14 Round Total Multiplier Distribution (Basic Rounds)
+
+```python
+round_total_multiplier_distribution_basic_rounds =
+    [round.round_total_multiplier for basic rounds]
+```
+
+### 7.6.15 Round Total Multiplier Distribution (Free Rounds)
+
+```python
+round_total_multiplier_distribution_free_rounds =
+    [round.round_total_multiplier for free rounds]
 ```
 
 ## 7.7 Round Structure Metrics
 
-### 7.7.1 Average Rolls per Round
-
-Level: `Round`
+### 7.7.1 Average Rolls per Round (All Rounds)
 
 ```python
-avg_roll_count_per_round =
+avg_roll_count_per_round_all_rounds =
     sum(round.roll_count for all rounds)
     / total_rounds
 ```
 
-### 7.7.2 Roll Count Distribution per Round
+### 7.7.2 Average Rolls per Round (Basic Rounds)
 
-Level: `Round`
+```python
+avg_roll_count_per_round_basic_rounds =
+    sum(round.roll_count for basic rounds)
+    / basic_round_count
+```
+
+### 7.7.3 Average Rolls per Round (Free Rounds)
+
+```python
+avg_roll_count_per_round_free_rounds =
+    sum(round.roll_count for free rounds)
+    / free_round_count
+```
+
+### 7.7.4 Roll Count Distribution per Round (All Rounds)
 
 Distribution input:
 
 ```python
-[round.roll_count for all rounds]
+roll_count_distribution_all_rounds =
+    [round.roll_count for all rounds]
 ```
 
+### 7.7.5 Roll Count Distribution per Round (Basic Rounds)
+
+Distribution input:
+
+```python
+roll_count_distribution_basic_rounds =
+    [round.roll_count for basic rounds]
+```
+
+### 7.7.6 Roll Count Distribution per Round (Free Rounds)
+
+Distribution input:
+
+```python
+roll_count_distribution_free_rounds =
+    [round.roll_count for free rounds]
+```
 ---
 
 # 8. Roll-Level Metrics
@@ -956,8 +1019,6 @@ RollMetrics = {
 
 ### 8.1.1 Average Roll Win Amount
 
-Level: `Roll`
-
 ```python
 avg_roll_win_amount =
     sum(roll.roll_win_amount for all rolls)
@@ -965,8 +1026,6 @@ avg_roll_win_amount =
 ```
 
 ### 8.1.2 Roll Hit Frequency
-
-Level: `Roll`
 
 ```python
 roll_hit_frequency =
@@ -976,12 +1035,11 @@ roll_hit_frequency =
 
 ### 8.1.3 Roll Type Distribution
 
-Level: `Roll`
-
 Distribution input:
 
 ```python
-[roll.roll_type for all rolls]
+roll_type_distribution =
+    [roll.roll_type for all rolls]
 ```
 
 This metric is descriptive only.
@@ -991,8 +1049,6 @@ It does not interpret engine semantics beyond the recorded field.
 
 ### 8.2.1 Average Multiplier Symbols per Roll
 
-Level: `Roll`
-
 ```python
 avg_roll_multi_symbols_num =
     sum(roll.roll_multi_symbols_num for all rolls)
@@ -1000,8 +1056,6 @@ avg_roll_multi_symbols_num =
 ```
 
 ### 8.2.2 Multiplier-Symbol Roll Frequency
-
-Level: `Roll`
 
 ```python
 roll_with_multiplier_symbol_frequency =
@@ -1011,8 +1065,6 @@ roll_with_multiplier_symbol_frequency =
 
 ### 8.2.3 Total Multiplier Symbols
 
-Level: `Roll`
-
 ```python
 total_roll_multi_symbols_num =
     sum(roll.roll_multi_symbols_num for all rolls)
@@ -1020,21 +1072,14 @@ total_roll_multi_symbols_num =
 
 ### 8.2.4 Multiplier Carry Value Distribution
 
-Level: `Roll`
-
 Distribution input:
 
 ```python
-[
-    value
-    for all rolls
-    for value in roll.roll_multi_symbols_carry
-]
+multiplier_carry_varry_distribution =
+    [value for all rools for value in roll.rool_multi_symbols_carry]
 ```
 
 ### 8.2.5 Average Multiplier Carry Value
-
-Level: `Roll`
 
 ```python
 avg_multiplier_carry_value =
@@ -1043,8 +1088,6 @@ avg_multiplier_carry_value =
 ```
 
 ### 8.2.6 Maximum Multiplier Carry Value
-
-Level: `Roll`
 
 ```python
 max_multiplier_carry_value =
@@ -1055,8 +1098,6 @@ max_multiplier_carry_value =
 
 ### 8.3.1 Average Scatter Symbols per Roll
 
-Level: `Roll`
-
 ```python
 avg_roll_scatter_symbols_num =
     sum(roll.roll_scatter_symbols_num for all rolls)
@@ -1064,8 +1105,6 @@ avg_roll_scatter_symbols_num =
 ```
 
 ### 8.3.2 Scatter-Containing Roll Frequency
-
-Level: `Roll`
 
 ```python
 roll_with_scatter_symbol_frequency =
@@ -1075,29 +1114,25 @@ roll_with_scatter_symbol_frequency =
 
 ### 8.3.3 Scatter Symbol Count Distribution per Roll
 
-Level: `Roll`
-
 Distribution input:
 
 ```python
-[roll.roll_scatter_symbols_num for all rolls]
+scatter_symbol_count_distribution_per_roll =
+    [roll.roll_scatter_symbols_num for all rolls]
 ```
 
 ## 8.4 Roll Distribution Metrics
 
 ### 8.4.1 Roll Win Amount Distribution
 
-Level: `Roll`
-
 Distribution input:
 
 ```python
-[roll.roll_win_amount for all rolls]
+roll_win_amount_distribution =
+    [roll.roll_win_amount for all rolls]
 ```
 
 ### 8.4.2 Roll Win Amount Quantiles
-
-Level: `Roll`
 
 Typical outputs may include:
 
@@ -1108,7 +1143,8 @@ p50, p90, p95, p99
 Computed from:
 
 ```python
-[roll.roll_win_amount for all rolls]
+roll_win_amount_quantiles =
+    [roll.roll_win_amount for all rolls]
 ```
 
 ---
@@ -1119,8 +1155,6 @@ These metrics remain descriptive summaries derived from canonical hierarchy.
 
 ## 9.1 Average Free Rounds per Bet
 
-Level: `Bet`
-
 Computed from round partition:
 
 ```python
@@ -1130,8 +1164,6 @@ avg_free_rounds_per_bet =
 
 ## 9.2 Average Basic Rounds per Bet
 
-Level: `Bet`
-
 ```python
 avg_basic_rounds_per_bet =
     count(basic rounds) / total_bets
@@ -1140,8 +1172,6 @@ avg_basic_rounds_per_bet =
 In the current engine flow, this is expected to reflect one initial basic round per bet, but metrics only report the observed value.
 
 ## 9.3 Average Rolls per Bet
-
-Level: `Bet`
 
 ```python
 avg_rolls_per_bet = total_rolls / total_bets
