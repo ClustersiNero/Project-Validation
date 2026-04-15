@@ -508,17 +508,30 @@ round_hit_frequency =
     / total_rounds
 ```
 
-### 7.1.3 Average Base Symbol Win Amount per Round
+### 7.1.3 Pure Base Symbol Win
 
 Level: `Round`
 
 ```python
-avg_base_symbol_win_amount_per_round =
+avg_pure_base_symbol_win_amount_per_round =
     sum(round.base_symbol_win_amount for all rounds)
     / total_rounds
 ```
 
-### 7.1.4 Average Scatter Win Amount per Round
+### 7.1.4 Multiplier Contribution
+
+Level: `Round`
+
+```python
+avg_multiplier_contribution_per_round =
+    sum(
+        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
+        for all rounds
+    )
+    / total_rounds
+```
+
+### 7.1.5 Average Scatter Win Amount per Round
 
 Level: `Round`
 
@@ -640,51 +653,34 @@ avg_award_free_rounds_from_free_round =
     / free_round_count
 ```
 
+
 ## 7.4 Round Multiplier Metrics
 
-These metrics use only recorded multiplier-related fields from `RoundRecord`.
+These metrics describe multiplier behavior strictly based on recorded fields in `RoundRecord`.
 
-### 7.4.1 Average Global Multiplier at Round Start
+All metrics are partitioned by `round_type` where relevant, to reflect distinct multiplier dynamics in `basic` and `free` rounds.
 
-Level: `Round`
-
-```python
-avg_global_multiplier =
-    sum(round.global_multiplier for all rounds)
-    / total_rounds
-```
-
-### 7.4.2 Average Round Multiplier Increment
+### 7.4.1 Multiplier Increment Frequency (All Rounds)
 
 Level: `Round`
 
 ```python
-avg_round_multiplier_increment =
-    sum(round.round_multiplier_increment for all rounds)
-    / total_rounds
-```
-
-### 7.4.3 Average Round Total Multiplier
-
-Level: `Round`
-
-```python
-avg_round_total_multiplier =
-    sum(round.round_total_multiplier for all rounds)
-    / total_rounds
-```
-
-### 7.4.4 Multiplier Increment Frequency
-
-Level: `Round`
-
-```python
-round_multiplier_increment_frequency =
+multiplier_increment_frequency =
     count(round.round_multiplier_increment > 0)
     / total_rounds
 ```
 
-### 7.4.5 Multiplier Increment Frequency on Free Rounds
+### 7.4.2 Multiplier Increment Frequency (Basic Rounds)
+
+Level: `Round`
+
+```python
+basic_round_multiplier_increment_frequency =
+    count(round.round_multiplier_increment > 0 for basic rounds)
+    / basic_round_count
+```
+
+### 7.4.3 Multiplier Increment Frequency (Free Rounds)
 
 Level: `Round`
 
@@ -694,7 +690,66 @@ free_round_multiplier_increment_frequency =
     / free_round_count
 ```
 
-### 7.4.6 Average Free-Round Total Multiplier
+### 7.4.4 Average Multiplier Increment (All Rounds)
+
+Level: `Round`
+
+```python
+avg_round_multiplier_increment =
+    sum(round.round_multiplier_increment for all rounds)
+    / total_rounds
+```
+
+### 7.4.5 Average Multiplier Increment (Basic Rounds)
+
+Level: `Round`
+
+```python
+avg_basic_round_multiplier_increment =
+    sum(round.round_multiplier_increment for basic rounds)
+    / basic_round_count
+```
+
+### 7.4.6 Average Multiplier Increment (Free Rounds)
+
+Level: `Round`
+
+```python
+avg_free_round_multiplier_increment =
+    sum(round.round_multiplier_increment for free rounds)
+    / free_round_count
+```
+
+### 7.4.7 Maximum Multiplier Increment
+
+Level: `Round`
+
+```python
+max_round_multiplier_increment =
+    max(round.round_multiplier_increment for all rounds)
+```
+
+### 7.4.8 Average Round Total Multiplier (All Rounds)
+
+Level: `Round`
+
+```python
+avg_round_total_multiplier =
+    sum(round.round_total_multiplier for all rounds)
+    / total_rounds
+```
+
+### 7.4.9 Average Round Total Multiplier (Basic Rounds)
+
+Level: `Round`
+
+```python
+avg_basic_round_total_multiplier =
+    sum(round.round_total_multiplier for basic rounds)
+    / basic_round_count
+```
+
+### 7.4.10 Average Round Total Multiplier (Free Rounds)
 
 Level: `Round`
 
@@ -704,16 +759,7 @@ avg_free_round_total_multiplier =
     / free_round_count
 ```
 
-### 7.4.7 Maximum Round Multiplier Increment
-
-Level: `Round`
-
-```python
-max_round_multiplier_increment =
-    max(round.round_multiplier_increment for all rounds)
-```
-
-### 7.4.8 Maximum Round Total Multiplier
+### 7.4.11 Maximum Round Total Multiplier
 
 Level: `Round`
 
@@ -721,6 +767,47 @@ Level: `Round`
 max_round_total_multiplier =
     max(round.round_total_multiplier for all rounds)
 ```
+
+### 7.4.12 Average Global Multiplier at Free Round Start
+
+Level: `Round`
+
+Global multiplier accumulation is only meaningful in free rounds.
+
+```python
+avg_global_multiplier_at_free_round_start =
+    sum(round.global_multiplier for free rounds)
+    / free_round_count
+```
+
+### 7.4.13 Maximum Global Multiplier
+
+Level: `Round`
+
+```python
+max_global_multiplier =
+    max(round.global_multiplier for all rounds)
+```
+
+### 7.4.14 Round Total Multiplier Distribution (All Rounds)
+
+Level: `Round`
+
+```python
+round_total_multiplier_distribution_all_rounds =
+    [round.round_total_multiplier for round in all_rounds]
+```
+
+### 7.4.15 Round Total Multiplier Distribution (Free Rounds)
+
+Level: `Round`
+
+```python
+round_total_multiplier_distribution_free_rounds =
+    [round.round_total_multiplier for round in free_rounds]
+```
+
+---
 
 ## 7.5 Round Scatter Metrics
 
