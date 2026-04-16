@@ -36,6 +36,7 @@ Required rules:
 - metrics must remain deterministic
 - metrics must not introduce new upstream schema fields
 - metrics must not mix validation logic into metric definitions
+- core metrics must be computed on all rounds only (no basic / free partition)
 
 Pipeline position:
 
@@ -282,8 +283,6 @@ free_win_share =
 
 ### 6.2.1 Bet Win Amount Distribution
 
-Distribution input:
-
 ```python
 bet_win_amount_distribution = 
     [bet.bet_win_amount for bet in bets]
@@ -298,8 +297,6 @@ bet_win_multiple = bet.bet_win_amount / bet_level
 ```
 
 This represents normalized payout multiple relative to bet_level.
-
-Distribution input:
 
 ```python
 bet_win_multiple_distribution =
@@ -382,8 +379,6 @@ avg_round_count_per_bet = sum(bet.round_count for bet in bets) / total_bets
 
 ### 6.4.2 Round Count Distribution per Bet
 
-Distribution input:
-
 ```python
 round_count_distribution_per_bet =
     [bet.round_count for bet in bets]
@@ -402,6 +397,31 @@ free_containing_bet_frequency =
 
 This remains descriptive only.
 
+### 6.4.4 Average Basic Rounds per Bet
+
+```python
+avg_basic_rounds_per_bet =
+    count(basic rounds) / total_bets
+```
+
+In the current engine flow, this is expected to reflect one initial basic round per bet, but metrics only report the observed value.
+
+### 6.4.5 Average Free Rounds per Bet
+
+Computed from round partition:
+
+```python
+avg_free_rounds_per_bet =
+    count(free rounds) / total_bets
+```
+
+
+### 6.4.6 Average Rolls per Bet
+
+```python
+avg_rolls_per_bet = total_rolls / total_bets
+```
+
 ## 6.5 Bet Volatility-Oriented Descriptive Metrics
 
 These metrics describe spread and concentration only.
@@ -418,8 +438,8 @@ mean_bet_win_multiple =
 Computed from:
 
 ```python
-bet_win_multipler_variance =
-    [bet.bet_win_amount / bet_level for bet in bets]
+bet_win_multiple_variance =
+    variance(bet_win_multiple_values)
 ```
 
 ### 6.5.3 Bet Win Multiple Standard Deviation
@@ -477,25 +497,6 @@ avg_base_symbol_win_amount_per_round =
     / total_rounds
 ```
 
-### 7.1.4 Multiplier Contribution
-
-```python
-avg_multiplier_contribution_per_round =
-    sum(
-        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
-        for all rounds
-    )
-    / total_rounds
-```
-
-### 7.1.5 Average Scatter Win Amount per Round
-
-```python
-avg_scatter_win_amount_per_round =
-    sum(round.scatter_win_amount for all rounds)
-    / total_rounds
-```
-
 ## 7.2 Basic Round Metrics
 
 Basic round metrics are computed from rounds where:
@@ -526,15 +527,7 @@ basic_round_hit_frequency =
     / basic_round_count
 ```
 
-### 7.2.4 Average Basic Scatter Increment
-
-```python
-avg_basic_round_scatter_increment =
-    sum(round.round_scatter_increment for basic rounds)
-    / basic_round_count
-```
-
-### 7.2.5 Average Awarded Free Rounds from Basic Rounds
+### 7.2.4 Average Free Rounds Awarded (Basic Rounds)
 
 ```python
 avg_award_free_rounds_from_basic_round =
@@ -572,15 +565,7 @@ free_round_hit_frequency =
     / free_round_count
 ```
 
-### 7.3.4 Average Free Scatter Increment
-
-```python
-avg_free_round_scatter_increment =
-    sum(round.round_scatter_increment for free rounds)
-    / free_round_count
-```
-
-### 7.3.5 Average Awarded Free Rounds from Free Rounds
+### 7.3.4 Average Free Rounds Awarded (Free Rounds)
 
 ```python
 avg_award_free_rounds_from_free_round =
@@ -595,15 +580,7 @@ These metrics describe multiplier behavior strictly based on recorded fields in 
 
 All metrics are partitioned by `round_type` where relevant, to reflect distinct multiplier dynamics in `basic` and `free` rounds.
 
-### 7.4.1 Multiplier Increment Frequency (All Rounds)
-
-```python
-multiplier_increment_frequency =
-    count(round.round_multiplier_increment > 0)
-    / total_rounds
-```
-
-### 7.4.2 Multiplier Increment Frequency (Basic Rounds)
+### 7.4.1 Multiplier Increment Frequency (Basic Rounds)
 
 ```python
 basic_round_multiplier_increment_frequency =
@@ -611,7 +588,7 @@ basic_round_multiplier_increment_frequency =
     / basic_round_count
 ```
 
-### 7.4.3 Multiplier Increment Frequency (Free Rounds)
+### 7.4.2 Multiplier Increment Frequency (Free Rounds)
 
 ```python
 free_round_multiplier_increment_frequency =
@@ -619,15 +596,7 @@ free_round_multiplier_increment_frequency =
     / free_round_count
 ```
 
-### 7.4.4 Average Multiplier Increment (All Rounds)
-
-```python
-avg_round_multiplier_increment =
-    sum(round.round_multiplier_increment for all rounds)
-    / total_rounds
-```
-
-### 7.4.5 Average Multiplier Increment (Basic Rounds)
+### 7.4.3 Average Multiplier Increment (Basic Rounds)
 
 ```python
 avg_basic_round_multiplier_increment =
@@ -635,7 +604,7 @@ avg_basic_round_multiplier_increment =
     / basic_round_count
 ```
 
-### 7.4.6 Average Multiplier Increment (Free Rounds)
+### 7.4.4 Average Multiplier Increment (Free Rounds)
 
 ```python
 avg_free_round_multiplier_increment =
@@ -643,22 +612,14 @@ avg_free_round_multiplier_increment =
     / free_round_count
 ```
 
-### 7.4.7 Maximum Multiplier Increment
+### 7.4.5 Maximum Multiplier Increment
 
 ```python
 max_round_multiplier_increment =
     max(round.round_multiplier_increment for all rounds)
 ```
 
-### 7.4.8 Average Round Total Multiplier (All Rounds)
-
-```python
-avg_round_total_multiplier =
-    sum(round.round_total_multiplier for all rounds)
-    / total_rounds
-```
-
-### 7.4.9 Average Round Total Multiplier (Basic Rounds)
+### 7.4.6 Average Round Total Multiplier (Basic Rounds)
 
 ```python
 avg_basic_round_total_multiplier =
@@ -666,7 +627,7 @@ avg_basic_round_total_multiplier =
     / basic_round_count
 ```
 
-### 7.4.10 Average Round Total Multiplier (Free Rounds)
+### 7.4.7 Average Round Total Multiplier (Free Rounds)
 
 ```python
 avg_free_round_total_multiplier =
@@ -674,14 +635,14 @@ avg_free_round_total_multiplier =
     / free_round_count
 ```
 
-### 7.4.11 Maximum Round Total Multiplier
+### 7.4.8 Maximum Round Total Multiplier
 
 ```python
 max_round_total_multiplier =
     max(round.round_total_multiplier for all rounds)
 ```
 
-### 7.4.12 Average Global Multiplier at Free Round Start
+### 7.4.9 Average Global Multiplier at Free Round Start
 
 Global multiplier accumulation is only meaningful in free rounds.
 
@@ -691,50 +652,38 @@ avg_global_multiplier_at_free_round_start =
     / free_round_count
 ```
 
-### 7.4.13 Maximum Global Multiplier
+### 7.4.10 Maximum Global Multiplier
 
 ```python
 max_global_multiplier =
     max(round.global_multiplier for all rounds)
 ```
 
-### 7.4.14 Round Total Multiplier Distribution (All Rounds)
+### 7.4.11 Multiplier Contribution (Basic Rounds)
 
 ```python
-round_total_multiplier_distribution_all_rounds =
-    [round.round_total_multiplier for round in all_rounds]
+avg_multiplier_contribution_per_round_basic_rounds =
+    sum(
+        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
+        for basic rounds
+    )
+    / basic_round_count
 ```
 
-### 7.4.15 Round Total Multiplier Distribution (Basic Rounds)
+### 7.4.12 Multiplier Contribution (Free Rounds)
 
 ```python
-round_total_multiplier_distribution_basic_rounds =
-    [round.round_total_multiplier for round in basic_rounds]
+avg_multiplier_contribution_per_round_free_rounds =
+    sum(
+        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
+        for free rounds
+    )
+    / free_round_count
 ```
-
-### 7.4.16 Round Total Multiplier Distribution (Free Rounds)
-
-```python
-round_total_multiplier_distribution_free_rounds =
-    [round.round_total_multiplier for round in free_rounds]
-```
-
----
-
 
 ## 7.5 Round Scatter Metrics
 
-### 7.5.1 Average Scatter Increment (All Rounds)
-
-```python
-avg_round_scatter_increment_all_rounds =
-    sum(round.round_scatter_increment for all rounds)
-    / total_rounds
-```
-
-
-
-### 7.5.2 Average Scatter Increment (Basic Rounds)
+### 7.5.1 Average Scatter Increment (Basic Rounds)
 
 ```python
 avg_round_scatter_increment_basic_rounds =
@@ -742,7 +691,7 @@ avg_round_scatter_increment_basic_rounds =
     / basic_round_count
 ```
 
-### 7.5.3 Average Scatter Increment (Free Rounds)
+### 7.5.2 Average Scatter Increment (Free Rounds)
 
 ```python
 avg_round_scatter_increment_free_rounds =
@@ -750,15 +699,7 @@ avg_round_scatter_increment_free_rounds =
     / free_round_count
 ```
 
-### 7.5.4 Scatter Win Frequency (All Rounds)
-
-```python
-scatter_win_frequency_all_rounds =
-    count(round.scatter_win_amount > 0)
-    / total_rounds
-```
-
-### 7.5.5 Scatter Win Frequency (Basic Rounds)
+### 7.5.3 Scatter Win Frequency (Basic Rounds)
 
 ```python
 scatter_win_frequency_basic_rounds =
@@ -766,7 +707,7 @@ scatter_win_frequency_basic_rounds =
     / basic_round_count
 ```
 
-### 7.5.6 Scatter Win Frequency (Free Rounds)
+### 7.5.4 Scatter Win Frequency (Free Rounds)
 
 ```python
 scatter_win_frequency_free_rounds =
@@ -774,15 +715,7 @@ scatter_win_frequency_free_rounds =
     / free_round_count
 ```
 
-### 7.5.7 Average Scatter Win Amount (All Rounds)
-
-```python
-avg_scatter_win_amount_all_rounds =
-    sum(round.scatter_win_amount for all rounds)
-    / total_rounds
-```
-
-### 7.5.8 Average Scatter Win Amount (Basic Rounds)
+### 7.5.5 Average Scatter Win Amount (Basic Rounds)
 
 ```python
 avg_scatter_win_amount_basic_rounds =
@@ -790,7 +723,7 @@ avg_scatter_win_amount_basic_rounds =
     / basic_round_count
 ```
 
-### 7.5.9 Average Scatter Win Amount (Free Rounds)
+### 7.5.6 Average Scatter Win Amount (Free Rounds)
 
 ```python
 avg_scatter_win_amount_free_rounds =
@@ -798,15 +731,7 @@ avg_scatter_win_amount_free_rounds =
     / free_round_count
 ```
 
-### 7.5.10 Free-Round Award Frequency (All Rounds)
-
-```python
-award_free_round_frequency_all_rounds =
-    count(round.award_free_rounds > 0)
-    / total_rounds
-```
-
-### 7.5.11 Free-Round Award Frequency (Basic Rounds)
+### 7.5.7 Free-Round Award Frequency (Basic Rounds)
 
 ```python
 award_free_round_frequency_basic_rounds =
@@ -814,23 +739,13 @@ award_free_round_frequency_basic_rounds =
     / basic_round_count
 ```
 
-### 7.5.12 Free-Round Award Frequency (Free Rounds)
+### 7.5.8 Free-Round Award Frequency (Free Rounds)
 
 ```python
 award_free_round_frequency_free_rounds =
     count(round.award_free_rounds > 0 for free rounds)
     / free_round_count
-```
-
-### 7.5.13 Free-Round Award Frequency (All Rounds)
-
-```python
-award_free_round_frequency_all_rounds =
-    count(round.award_free_rounds > 0 for all rounds)
-    / total_rounds
-```
-
----
+``` 
 
 ## 7.6 Round Distribution Metrics
 
@@ -876,17 +791,7 @@ base_symbol_win_amount_distribution_free_rounds =
     [round.base_symbol_win_amount for free rounds]
 ```
 
-### 7.6.7 Multiplier Contribution Distribution (All Rounds)
-
-```python
-multiplier_contribution_distribution_all_rounds =
-    [
-        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
-        for all rounds
-    ]
-```
-
-### 7.6.8 Multiplier Contribution Distribution (Basic Rounds)
+### 7.6.7 Multiplier Contribution Distribution (Basic Rounds)
 
 ```python
 multiplier_contribution_distribution_basic_rounds =
@@ -896,7 +801,7 @@ multiplier_contribution_distribution_basic_rounds =
     ]
 ```
 
-### 7.6.9 Multiplier Contribution Distribution (Free Rounds)
+### 7.6.8 Multiplier Contribution Distribution (Free Rounds)
 
 ```python
 multiplier_contribution_distribution_free_rounds =
@@ -906,42 +811,35 @@ multiplier_contribution_distribution_free_rounds =
     ]
 ```
 
-### 7.6.10 Scatter Win Amount Distribution (All Rounds)
+### 7.6.9 Scatter Win Amount Distribution (All Rounds)
 
 ```python
 scatter_win_amount_distribution_all_rounds =
     [round.scatter_win_amount for all rounds]
 ```
 
-### 7.6.11 Scatter Win Amount Distribution (Basic Rounds)
+### 7.6.10 Scatter Win Amount Distribution (Basic Rounds)
 
 ```python
 scatter_win_amount_distribution_basic_rounds =
     [round.scatter_win_amount for basic rounds]
 ```
 
-### 7.6.12 Scatter Win Amount Distribution (Free Rounds)
+### 7.6.11 Scatter Win Amount Distribution (Free Rounds)
 
 ```python
 scatter_win_amount_distribution_free_rounds =
     [round.scatter_win_amount for free rounds]
 ```
 
-### 7.6.13 Round Total Multiplier Distribution (All Rounds)
-
-```python
-round_total_multiplier_distribution_all_rounds =
-    [round.round_total_multiplier for all rounds]
-```
-
-### 7.6.14 Round Total Multiplier Distribution (Basic Rounds)
+### 7.6.12 Round Total Multiplier Distribution (Basic Rounds)
 
 ```python
 round_total_multiplier_distribution_basic_rounds =
     [round.round_total_multiplier for basic rounds]
 ```
 
-### 7.6.15 Round Total Multiplier Distribution (Free Rounds)
+### 7.6.13 Round Total Multiplier Distribution (Free Rounds)
 
 ```python
 round_total_multiplier_distribution_free_rounds =
@@ -950,56 +848,23 @@ round_total_multiplier_distribution_free_rounds =
 
 ## 7.7 Round Structure Metrics
 
-### 7.7.1 Average Rolls per Round (All Rounds)
+structure metrics are mechanism-independent and must not be partitioned by round_type
+
+### 7.7.1 Average Rolls per Round
 
 ```python
-avg_roll_count_per_round_all_rounds =
+avg_roll_count_per_round =
     sum(round.roll_count for all rounds)
     / total_rounds
 ```
 
-### 7.7.2 Average Rolls per Round (Basic Rounds)
+### 7.7.2 Roll Count Distribution per Round
 
 ```python
-avg_roll_count_per_round_basic_rounds =
-    sum(round.roll_count for basic rounds)
-    / basic_round_count
-```
-
-### 7.7.3 Average Rolls per Round (Free Rounds)
-
-```python
-avg_roll_count_per_round_free_rounds =
-    sum(round.roll_count for free rounds)
-    / free_round_count
-```
-
-### 7.7.4 Roll Count Distribution per Round (All Rounds)
-
-Distribution input:
-
-```python
-roll_count_distribution_all_rounds =
+roll_count_distribution =
     [round.roll_count for all rounds]
 ```
 
-### 7.7.5 Roll Count Distribution per Round (Basic Rounds)
-
-Distribution input:
-
-```python
-roll_count_distribution_basic_rounds =
-    [round.roll_count for basic rounds]
-```
-
-### 7.7.6 Roll Count Distribution per Round (Free Rounds)
-
-Distribution input:
-
-```python
-roll_count_distribution_free_rounds =
-    [round.roll_count for free rounds]
-```
 ---
 
 # 8. Roll-Level Metrics
@@ -1035,15 +900,18 @@ roll_hit_frequency =
 
 ### 8.1.3 Roll Type Distribution
 
-Distribution input:
-
 ```python
 roll_type_distribution =
-    [roll.roll_type for all rolls]
+    {
+        "initial": count(roll.roll_type == "initial") / total_rolls,
+        "cascade": count(roll.roll_type == "cascade") / total_rolls,
+    }
 ```
 
 This metric is descriptive only.
-It does not interpret engine semantics beyond the recorded field.
+
+It reflects the structural composition of rolls (initial vs cascade),
+and does not carry gameplay or payout significance.
 
 ## 8.2 Roll Multiplier Metrics
 
@@ -1072,11 +940,9 @@ total_roll_multi_symbols_num =
 
 ### 8.2.4 Multiplier Carry Value Distribution
 
-Distribution input:
-
 ```python
-multiplier_carry_varry_distribution =
-    [value for all rools for value in roll.rool_multi_symbols_carry]
+multiplier_carry_value_distribution =
+    [value for all rolls for value in roll.roll_multi_symbols_carry]
 ```
 
 ### 8.2.5 Average Multiplier Carry Value
@@ -1114,8 +980,6 @@ roll_with_scatter_symbol_frequency =
 
 ### 8.3.3 Scatter Symbol Count Distribution per Roll
 
-Distribution input:
-
 ```python
 scatter_symbol_count_distribution_per_roll =
     [roll.roll_scatter_symbols_num for all rolls]
@@ -1124,8 +988,6 @@ scatter_symbol_count_distribution_per_roll =
 ## 8.4 Roll Distribution Metrics
 
 ### 8.4.1 Roll Win Amount Distribution
-
-Distribution input:
 
 ```python
 roll_win_amount_distribution =
@@ -1149,39 +1011,9 @@ roll_win_amount_quantiles =
 
 ---
 
-# 9. Cross-Level Consistency Metrics
+# 9. Structural Rules For Metrics
 
-These metrics remain descriptive summaries derived from canonical hierarchy.
-
-## 9.1 Average Free Rounds per Bet
-
-Computed from round partition:
-
-```python
-avg_free_rounds_per_bet =
-    count(free rounds) / total_bets
-```
-
-## 9.2 Average Basic Rounds per Bet
-
-```python
-avg_basic_rounds_per_bet =
-    count(basic rounds) / total_bets
-```
-
-In the current engine flow, this is expected to reflect one initial basic round per bet, but metrics only report the observed value.
-
-## 9.3 Average Rolls per Bet
-
-```python
-avg_rolls_per_bet = total_rolls / total_bets
-```
-
----
-
-# 10. Structural Rules For Metrics
-
-## 10.1 Determinism
+## 9.1 Determinism
 
 ```python
 CanonicalResult -> identical MetricsBundle
@@ -1189,7 +1021,7 @@ CanonicalResult -> identical MetricsBundle
 
 Metrics computation must be deterministic.
 
-## 10.2 Allowed Data Sources
+## 9.2 Allowed Data Sources
 
 Metrics may use only:
 
@@ -1206,7 +1038,7 @@ Metrics must not use:
 - hidden engine state
 - external reference data
 
-## 10.3 No Side Effects
+## 9.3 No Side Effects
 
 Metrics computation must not:
 
@@ -1214,7 +1046,7 @@ Metrics computation must not:
 - reorder canonical records
 - add interpretation back into canonical
 
-## 10.4 No Hidden Reconstruction
+## 9.4 No Hidden Reconstruction
 
 Metrics must not invent non-recorded states.
 
@@ -1235,7 +1067,7 @@ Not allowed:
 
 ---
 
-# 11. Minimal API
+# 10. Minimal API
 
 ```python
 compute_metrics(result: CanonicalResult) -> MetricsBundle
@@ -1243,7 +1075,7 @@ compute_metrics(result: CanonicalResult) -> MetricsBundle
 
 ---
 
-# 12. Non-Goals
+# 11. Non-Goals
 
 This file does not define:
 
@@ -1258,7 +1090,7 @@ Those belong to the validation layer, not the metrics layer.
 
 ---
 
-# 13. Summary
+# 12. Summary
 
 The metrics layer provides:
 

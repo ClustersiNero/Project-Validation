@@ -160,6 +160,9 @@ RollRecord = {
 
 * one roll belongs to one round
 * rolls are ordered within a round
+* `roll_type` indicates whether the roll is the initial drop of the round or a cascade (refill) step:
+  - "initial": the first roll of a round
+  - "cascade": subsequent rolls triggered by symbol clearing and refill
 * `roll_filled_state` records the filled symbol matrix used for evaluation in the current roll
 * `roll_final_state` records the resulting state after win clearing and gravity resolution in the current roll
 * `roll_multi_symbols_num` records the number of multiplier symbols generated in the roll
