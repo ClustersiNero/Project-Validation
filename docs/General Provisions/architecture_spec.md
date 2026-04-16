@@ -214,7 +214,7 @@ Each bet record contains one or more round records in `rounds`.
 - round_win_amount
 
 - base_symbol_win_amount
-- global_multiplier
+- carried_multiplier
 - round_multiplier_increment
 - round_total_multiplier
 
@@ -230,6 +230,8 @@ Each bet record contains one or more round records in `rounds`.
 
 Each round record belongs to one bet record.
 Each round record contains one or more roll records in `rolls`.
+`round_total_multiplier` records the actual settlement multiplier factor applied to round-level `base_symbol_win_amount`.
+It MUST be 1 when the current round generates no `round_multiplier_increment`.
 
 ---
 
@@ -241,7 +243,7 @@ Each round record contains one or more roll records in `rolls`.
 - roll_win_amount
 - roll_type
 
-- reel_set_id
+- strip_set_id
 - multiplier_profile_id
 
 - roll_filled_state
@@ -255,6 +257,10 @@ Each round record contains one or more roll records in `rolls`.
 ###### 4.1.2.3.2 Structure
 
 Each roll record belongs to one round record.
+Scatter and multiplier symbols may remain present across rolls, but round-level aggregation MUST count each symbol instance at most once within the same round. Counting is based on persisted board-state instances observed across rolls
+
+**Symbol instance identity**: A symbol instance is uniquely identified by `(first_observed_roll_id, first_observed_row, first_observed_col)`. Gravity movement within subsequent cascades does not create a new instance.
+
 
 ### 4.2 Invariants
 
@@ -394,7 +400,7 @@ compute_metrics(result) -> MetricsBundle
 
 validate_metrics(metrics, rules) -> ValidationReport
 
-run_pipeline(config) -> PipelineArtifact
+run_pipeline(config, seed) -> PipelineArtifact
 ```
 
 ---

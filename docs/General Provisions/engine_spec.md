@@ -42,7 +42,7 @@ bet_amount is strictly forbidden in:
    - read simulation_mode (normal / buy_free / chance_increase)
    - set:
      - round_type = basic
-     - global_multiplier = 0
+     - carried_multiplier = 0
      - remaining_rounds = 1
 
 2. Execute rounds while remaining_rounds > 0:
@@ -54,7 +54,7 @@ bet_amount is strictly forbidden in:
 
    - accumulate multiplier:
      - if round_type = free and base symbol win > 0:
-         global_multiplier += sum(multiplier from current round)
+         carried_multiplier += sum(multiplier from current round)
 
    - update remaining_rounds:
      - remaining_rounds -= 1
@@ -70,7 +70,7 @@ bet_amount is strictly forbidden in:
 
 1. Initialize round:
    - read round_type
-   - read global_multiplier
+   - read carried_multiplier
 
    - read round-level selection weights from config:
      - round_strip_set_weights
@@ -87,30 +87,59 @@ bet_amount is strictly forbidden in:
 
    - initialize empty symbol matrix
 
+   Refill sampling rule:
+   
+   - during cascades and refills, each column reuses the same round-selected strip and the same fixed column-to-strip mapping
+   - each refill event samples a new random start position independently for that column
+   - the engine does not carry a persistent strip cursor across rolls
+   - refill sampling must remain deterministic given the fixed RNG call order
+   - columns are processed in fixed ascending column order (column 0 first)
+   - refill-position RNG is called exactly once per column only when that column has empty_count > 0
+   - no refill-position RNG call is made for columns where empty_count = 0
+   - board coordinates use `matrix[row][col]`, where row 0 is the bottom row and row index increases upward
+   - for each column, refill write-back MUST occur in ascending row index order; that is, empty positions are filled from closest-to-gravity-boundary to furthest
+   - for any fill operation, the first sampled symbol from the cyclic strip slice MUST be written to the lowest target row in that column, and subsequent sampled symbols MUST be written in ascending row index order.
+
 2. Execute rolls until no further cascade:
    - perform roll
-   - continue while new winning combinations are generated
+   - continue only while the current roll generates regular-symbol base win
+   - if the current roll generates no regular-symbol base win, the round terminates
 
-3. Compute base symbol win:
+3. Compute base symbol win amount:
    - sum of base wins from all rolls (before multiplier)
 
 4. Compute multiplier effect:
    - sum_multiplier = sum(multiplier from all multiplier symbols in this round)
+   
+   - multiplier applies only to base_symbol_win_amount
+   - multiplier MUST NOT apply to scatter_win_amount
+
+   - carried carried_multiplier applies only when the current round also generates multiplier symbols
 
    - if sum_multiplier > 0:
-     - total_symbol_win = base_symbol_win * (sum_multiplier + global_multiplier)
+     - round_total_multiplier = sum_multiplier + carried_multiplier
+     - total_symbol_win = base_symbol_win * round_total_multiplier
    - else:
+     - round_total_multiplier = 1
      - total_symbol_win = base_symbol_win
 
-5. Compute scatter win
+5. Compute scatter win amount
+   - round_scatter_increment counts unique scatter symbol instances observed within the round
+   - a given scatter symbol instance MUST be counted at most once within the same round (consistent with the round-level symbol-instance rule)
+   - scatter payout lookup and free-round trigger both use this same round-level unique-instance count
+
+   - scatter payout lookup follows the same threshold rule as regular symbol payout lookup
+   - if the exact scatter count is not defined:
+     - the highest defined threshold not exceeding the count is used
+     - If no defined scatter payout threshold is less than or equal to the observed count, scatter_win_amount = 0.
 
 6. Compute round total win:
-   - round_win = total_symbol_win + scatter_win
+   - round_win = total_symbol_win + scatter_win_amount
 
 7. Determine free rounds:
-   - if round_type = basic and scatter >= 4:
+   - if round_type = basic and round_scatter_increment >= 4:
      - award 15 free rounds
-   - if round_type = free and scatter >= 3:
+   - if round_type = free and round_scatter_increment >= 3:
      - award 5 free rounds
 
 ---
@@ -123,15 +152,25 @@ bet_amount is strictly forbidden in:
    - use the round-selected strip_set_id and fixed column-to-strip mapping
 
    - for each column:
+     - for the initial roll of a round: fill row_count positions
+     - for a cascade refill: fill exactly empty_count positions
      - sample symbol positions from the assigned strip
-     - generate symbols to fill empty positions
+     - generate symbols to fill the required number of positions
 
    - produce new symbol matrix
 
    - if multiplier symbols exist:
-     - for each multiplier symbol:
+     - multiplier positions are traversed in row-major order (row 0 first, then ascending column within each row)
+     - for each multiplier symbol in that order:
        - sample multiplier value from the round-selected multiplier_profile_id
        - assign exactly one value per symbol
+
+   Non-regular symbol recording rule:
+   
+   - scatter symbols and multiplier symbols are recorded from the evaluated roll state
+   - they do not participate in regular-symbol win evaluation
+   - they are not removed by roll settlement
+   - within the same round, a given scatter symbol instance or multiplier symbol instance MUST be counted at most once for round-level aggregation
 
 3. Evaluate base symbol wins
 
@@ -146,6 +185,9 @@ Winning rule:
 - all symbols are evaluated by type (symbol_id)
 - for each regular symbol type:
   - count the total number of occurrences on the board
+- A winning combination exists when the total count of a regular symbol type on the board satisfies at least one qualifying payout -threshold defined in PAYTABLE[symbol_id]["payouts"].
+
+Scatter and multiplier symbols do not form winning combinations for roll-level base-symbol evaluation.
 
 Payout rule:
 
@@ -153,12 +195,17 @@ Payout rule:
 - payout is read from `PAYTABLE[symbol_id]["payouts"]`
 - if the exact count is not defined:
   - the highest defined threshold not exceeding the count is used
+  - If no defined regular-symbol payout threshold is less than or equal to the observed count, the payout for that symbol type is 0.
 
 Settlement rule:
 
 - each symbol type is evaluated independently
 - multiple symbol types may generate wins in the same roll
 - total roll base win is the sum of all symbol-type payouts evaluated on `bet_level`
+
+Clearing rule:
+- for each winning regular symbol type, all positions of that symbol type on the evaluated board are cleared
+- scatter symbols and multiplier symbols are never removed by regular-symbol clearing, regardless of board position
 
 Non-regular symbols:
 
@@ -356,11 +403,11 @@ symbol_type == "scatter"
 
 Rules for free round triggers:
 
-* if `round_type == basic` and scatter count ≥ 4:
+* if `round_type == basic` and `round_scatter_increment >= 4`:
 
   * award 15 free rounds
 
-* if `round_type == free` and scatter count ≥ 3:
+* if `round_type == free` and `round_scatter_increment >= 3`:
 
   * award 5 free rounds
 
@@ -453,7 +500,7 @@ Output MUST be sufficient for:
 
 The following must hold:
 
-(config, seed) -> identical execution result
+(config, seed, engine_version) -> identical CanonicalResult
 
 Payout normalization MUST be based on bet_level.
 Return-based metrics MUST be based on bet_amount.
@@ -482,10 +529,4 @@ Engine executes a bet as:
 * roll-resolved
 
 It produces a complete, ordered execution path for canonical recording.
-
-
-
-
-
-
 

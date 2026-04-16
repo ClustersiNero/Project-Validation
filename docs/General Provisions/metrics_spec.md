@@ -438,20 +438,22 @@ mean_bet_win_multiple =
 Computed from:
 
 ```python
-bet_win_multiple_variance =
-    variance(bet_win_multiple_values)
+bet_win_multiple_values =
+    [bet.bet_win_amount / bet_level for bet in bets]
 ```
+
+Variance is computed over bet_win_multiple_values.
 
 ### 6.5.3 Bet Win Multiple Standard Deviation
 
 Computed from:
 
 ```python
-bet_win_multiple_standard_deviation =
+bet_win_multiple_values =
     [bet.bet_win_amount / bet_level for bet in bets]
 ```
 
-These are descriptive volatility-related metrics only.
+Standard deviation is computed over bet_win_multiple_values.
 
 ---
 
@@ -642,21 +644,21 @@ max_round_total_multiplier =
     max(round.round_total_multiplier for all rounds)
 ```
 
-### 7.4.9 Average Global Multiplier at Free Round Start
+### 7.4.9 Average Carried Multiplier at Free Round Start
 
-Global multiplier accumulation is only meaningful in free rounds.
+Carried multiplier accumulation is only meaningful in free rounds.
 
 ```python
-avg_global_multiplier_at_free_round_start =
-    sum(round.global_multiplier for free rounds)
+avg_carried_multiplier_at_free_round_start =
+    sum(round.carried_multiplier for free rounds)
     / free_round_count
 ```
 
-### 7.4.10 Maximum Global Multiplier
+### 7.4.10 Maximum Carried Multiplier
 
 ```python
-max_global_multiplier =
-    max(round.global_multiplier for all rounds)
+max_carried_multiplier =
+    max(round.carried_multiplier for all rounds)
 ```
 
 ### 7.4.11 Multiplier Contribution (Basic Rounds)

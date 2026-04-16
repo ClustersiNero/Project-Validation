@@ -126,7 +126,8 @@ MULTIPLIER_DATA = {
 
 # Virtual Reel Strips
 # The outer dictionary key identifies a strip set.
-# The inner keys [1~6] identify the 6 strips inside that strip set, corresponding to the 6 board columns.
+# The inner keys [1~6] identify the 6 strips inside that strip set.
+# These strips are shuffled once at round start and then assigned to the 6 columns.
 # Symbol ids inside each strip map directly to PAYTABLE symbol ids.
 #
 # Symbols within a single strip preserve vertical adjacency.
