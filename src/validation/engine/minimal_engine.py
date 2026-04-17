@@ -1,16 +1,17 @@
 from validation.core.types import CanonicalResult, BetRecord, RoundRecord, RollRecord
+from validation.config.minimal_config import MinimalSimulationConfig
 
 
-def build_minimal_canonical_result(config) -> CanonicalResult:
+def build_minimal_canonical_result(config: MinimalSimulationConfig) -> CanonicalResult:
     rounds = []
-    for round_index, round_data in enumerate(config["rounds"]):
+    for round_index, round_data in enumerate(config.rounds):
         rolls = [
             RollRecord(roll_id=roll_index, roll_win_amount=win_amount)
-            for roll_index, win_amount in enumerate(round_data["roll_wins"])
+            for roll_index, win_amount in enumerate(round_data.roll_wins)
         ]
         round_ = RoundRecord(
-            round_id=round_index,
-            round_type="basic",
+            round_id=round_data.round_id,
+            round_type=round_data.round_type,
             roll_count=len(rolls),
             rolls=rolls,
             round_win_amount=sum(r.roll_win_amount for r in rolls),

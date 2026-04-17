@@ -1,15 +1,10 @@
-from validation.api.run_pipeline import run
+from configs.game import olympus_mini
+from validation.api import run
 from validation.core.types import PipelineResult
 
 
 def test_pipeline_smoke():
-    config = {
-        "rounds": [
-            {"roll_wins": [0.0, 1.0]},
-            {"roll_wins": [0.0, 2.0]},
-        ]
-    }
-    result = run(config)
+    result = run(olympus_mini)
 
     assert isinstance(result, PipelineResult)
 
@@ -18,6 +13,10 @@ def test_pipeline_smoke():
     assert len(result.canonical_result.bets[0].rounds) == 2
     assert len(result.canonical_result.bets[0].rounds[0].rolls) == 2
     assert len(result.canonical_result.bets[0].rounds[1].rolls) == 2
+
+    # round ids
+    assert result.canonical_result.bets[0].rounds[0].round_id == 0
+    assert result.canonical_result.bets[0].rounds[1].round_id == 1
 
     # canonical values
     assert result.canonical_result.bets[0].bet_win_amount == 3.0
