@@ -66,9 +66,134 @@ Forbidden:
 
 ---
 
-# 3. Input / Output
+# 3. StatisticalMetric Schema
 
-## 3.1 Input
+CI-eligible metrics MUST use the following unified output type instead of a plain `float`:
+
+```python
+StatisticalMetric = {
+    "observed": float,            # the computed metric value (mean / frequency)
+    "standard_deviation": float,  # sample std (Bessel-corrected, denominator n - 1)
+    "sample_size": int,           # number of observations in the underlying series
+}
+```
+
+Rules:
+
+- `observed` is the point estimate (mean or frequency) computed from the underlying sample series
+- `standard_deviation` is computed from the same underlying sample series using Bessel correction (denominator `sample_size - 1`)
+- `sample_size` is explicit per metric and must match the metric's sample space:
+  - bet-level metrics → `sample_size = total_bets`
+  - round-level metrics (all rounds) → `sample_size = total_rounds`
+  - round-level metrics (basic rounds) → `sample_size = basic_round_count`
+  - round-level metrics (free rounds) → `sample_size = free_round_count`
+  - roll-level metrics → `sample_size = total_rolls`
+- `standard_deviation` and `sample_size` MUST NOT be moved to `MetricsMeta`; they are per-metric fields
+- The metrics layer MUST NOT compute CI; it only exposes `observed`, `standard_deviation`, and `sample_size` for downstream use
+
+## Zero-Division and Small-Sample Contract
+
+The following rules MUST be applied deterministically; behavior MUST NOT be left to implementation convention:
+
+| Condition | `observed` | `standard_deviation` | `sample_size` |
+|---|---|---|---|
+| `sample_size == 0` | `null` | `null` | `0` |
+| `sample_size == 1` | computed normally | `null` | `1` |
+| `sample_size >= 2` | computed normally | computed (Bessel-corrected) | as counted |
+
+Rules:
+
+- `null` is a first-class value in this schema; it means "undefined", not "zero"
+- `standard_deviation` is `null` whenever Bessel-corrected std is undefined (i.e. `sample_size < 2`)
+- `observed` is `null` only when there are no observations (`sample_size == 0`); a single observation is a valid point estimate
+- The validation layer MUST treat `null` `standard_deviation` as a non-computable CI and MUST NOT substitute a default, a zero, or an epsilon
+- Filtered/conditional scalars (non-`StatisticalMetric` fields) MUST return `null` when their filtered sample is empty
+
+## CI Eligibility Boundary
+
+**Only metrics whose leaf type is `StatisticalMetric` are CI-eligible.**
+
+CI-eligible metrics are mean-like over a uniform sample space:
+
+- mean values
+- frequency values (0/1 mean over a fixed population)
+- average-per-unit values
+- contribution averages
+
+NOT CI-eligible (remain scalar or raw list):
+
+- `max` values
+- quantile values
+- distributions (raw lists)
+- tail metrics
+- filtered / conditional aggregates (e.g. average when hit, average over a non-uniform subset)
+
+Scalar metrics and distribution metrics MUST NOT be used in CI computation by the validation layer.
+
+## Path Contract
+
+`MetricsBundle` exposes metrics at nested paths:
+
+```
+MetricsBundle.<group>.<subgroup>.<metric_name>
+```
+
+Examples:
+
+```
+MetricsBundle.bet_metrics.core.avg_bet_win_amount
+MetricsBundle.round_metrics.core.avg_round_win_amount
+MetricsBundle.roll_metrics.core.avg_roll_win_amount
+```
+
+Rules:
+
+- `ValidationRules` MUST reference metrics using identical nested paths
+- No flat metric naming is permitted in `ValidationRules`
+- The group / subgroup hierarchy mirrors the `BetMetrics`, `RoundMetrics`, `RollMetrics` structures defined in this file
+
+## StatisticalMetric Semantics
+
+All CI-eligible metrics follow a common template. Each metric MUST provide an explicit series expression in its formula block. Fields are always derived as:
+
+- `observed` — mean of the series (or equivalent `sum(...) / len(...)` expression)
+- `standard_deviation` — `sample_std(series)`, Bessel-corrected
+- `sample_size` — `len(series)`
+
+**Frequency metrics** use an indicator series: `[1 if <condition> else 0 for item in population]`. Each frequency metric states only the condition; the indicator construction is implied by this template.
+
+**Distribution metrics** return the raw series as a list. They do not aggregate, provide no `standard_deviation` or `sample_size`, and are non-CI. And must return the full underlying series without aggregation or normalization.
+
+## Partition Rule for Round Metrics
+
+Round-level populations are defined once and used throughout §7:
+
+```python
+all_rounds   = [r for b in bets for r in b.rounds]
+basic_rounds = [r for r in all_rounds if r.round_type == "basic"]
+free_rounds  = [r for r in all_rounds if r.round_type == "free"]
+```
+
+Corresponding `sample_size` values:
+
+- `all_rounds` metrics → `sample_size = total_rounds`
+- `basic_rounds` metrics → `sample_size = basic_round_count = len(basic_rounds)`
+- `free_rounds` metrics → `sample_size = free_round_count = len(free_rounds)`
+
+Metric formulas across partitions are identical except for the input set. Section headers state which partition applies.
+
+Roll-level population: `all_rolls = [roll for b in bets for r in b.rounds for roll in r.rolls]`, `sample_size = total_rolls`.
+
+All CI-eligible metrics MUST be fully interpretable using this section alone.
+Per-metric definitions MUST NOT redefine sample unit, series, or aggregation semantics.
+
+Partition-specific metric groups (basic / free) MUST NOT redefine formulas; only input populations differ.
+
+---
+
+# 4. Input / Output
+
+## 4.1 Input
 
 ```python
 CanonicalResult = {
@@ -196,10 +321,9 @@ free_rounds  = [round for bet in bets for round in bet.rounds if round.round_typ
 
 ## 5.5 Zero-Division Rule
 
-Whenever a denominator is zero, the metric implementation must return a deterministic empty or null-equivalent value according to implementation convention.
+Zero-division behavior MUST follow the "Zero-Division and Small-Sample Contract" defined in Section 3.
 
-This specification defines formulas only.
-It does not define validation or fallback policy.
+No alternative implementation-specific handling is allowed.
 
 ---
 
@@ -221,7 +345,11 @@ BetMetrics = {
 ### 6.1.1 Empirical RTP
 
 ```python
-empirical_rtp = total_bet_win_amount / total_bet_amount
+empirical_rtp = StatisticalMetric(
+    observed           = sum(b.bet_win_amount for b in bets) / total_bets / bet_amount,
+    standard_deviation = sample_std([b.bet_win_amount / bet_amount for b in bets]),
+    sample_size        = total_bets,
+)
 ```
 
 Where:
@@ -246,22 +374,31 @@ free_rtp = sum(bet.free_win_amount for bet in bets) / total_bet_amount
 ### 6.1.4 Bet Hit Frequency
 
 ```python
-bet_hit_frequency = count(bet.bet_win_amount > 0) / total_bets
+bet_hit_frequency = StatisticalMetric(
+    observed           = len([b for b in bets if b.bet_win_amount > 0]) / total_bets,
+    standard_deviation = sample_std([1 if b.bet_win_amount > 0 else 0 for b in bets]),
+    sample_size        = total_bets,
+)
 ```
 
 ### 6.1.5 Average Bet Win
 
 ```python
-avg_bet_win_amount = sum(bet.bet_win_amount for bet in bets) / total_bets
+avg_bet_win_amount = StatisticalMetric(
+    observed           = sum(b.bet_win_amount for b in bets) / total_bets,
+    standard_deviation = sample_std([b.bet_win_amount for b in bets]),
+    sample_size        = total_bets,
+)
 ```
 
 ### 6.1.6 Average Bet Win When Hit
 
 ```python
-avg_bet_win_amount_when_hit =
-    sum(bet.bet_win_amount for bet in bets if bet.bet_win_amount > 0)
-    / count(bet.bet_win_amount > 0)
+hit_bets = [b for b in bets if b.bet_win_amount > 0]
+avg_bet_win_amount_when_hit = sum(b.bet_win_amount for b in hit_bets) / len(hit_bets)
 ```
+
+Scalar. Filtered sample (hit bets only) — NOT CI-eligible.
 
 ### 6.1.7 Basic Win Share of Total Bet Win
 
@@ -288,22 +425,14 @@ bet_win_amount_distribution =
     [bet.bet_win_amount for bet in bets]
 ```
 
-This distribution is expressed on absolute win amount.
-
 ### 6.2.2 Bet Win Multiple Distribution
-
-```python
-bet_win_multiple = bet.bet_win_amount / bet_level
-```
-
-This represents normalized payout multiple relative to bet_level.
 
 ```python
 bet_win_multiple_distribution =
     [bet.bet_win_amount / bet_level for bet in bets]
 ```
 
-This distribution is the preferred normalized bet-level distribution basis.
+`bet_win_multiple = bet_win_amount / bet_level` — normalized payout relative to `bet_level`.
 
 ### 6.2.3 Bet Win Multiple Quantiles
 
@@ -333,8 +462,6 @@ max_bet_win_multiple = max(bet.bet_win_amount / bet_level for bet in bets)
 ```
 
 ## 6.3 Bet Tail Metrics
-
-Tail metrics remain descriptive and distribution-based.
 
 ### 6.3.1 Top-p Bet Win Share
 
@@ -374,7 +501,11 @@ These are descriptive tail location metrics.
 ### 6.4.1 Average Rounds per Bet
 
 ```python
-avg_round_count_per_bet = sum(bet.round_count for bet in bets) / total_bets
+avg_round_count_per_bet = StatisticalMetric(
+    observed           = sum(b.round_count for b in bets) / total_bets,
+    standard_deviation = sample_std([b.round_count for b in bets]),
+    sample_size        = total_bets,
+)
 ```
 
 ### 6.4.2 Round Count Distribution per Bet
@@ -386,40 +517,50 @@ round_count_distribution_per_bet =
 
 ### 6.4.3 Free-Containing Bet Frequency
 
-A bet contains free rounds if at least one round in rounds has round_type == "free"
-
-Metric formula:
+Condition: `any(r.round_type == "free" for r in b.rounds)`
 
 ```python
-free_containing_bet_frequency =
-    count(bet where any(round.round_type == "free")) / total_bets
+free_containing_bet_frequency = StatisticalMetric(
+    observed           = len([b for b in bets
+                              if any(r.round_type == "free" for r in b.rounds)]) / total_bets,
+    standard_deviation = sample_std([1 if any(r.round_type == "free" for r in b.rounds) else 0
+                                     for b in bets]),
+    sample_size        = total_bets,
+)
 ```
-
-This remains descriptive only.
 
 ### 6.4.4 Average Basic Rounds per Bet
 
 ```python
-avg_basic_rounds_per_bet =
-    count(basic rounds) / total_bets
+avg_basic_rounds_per_bet = StatisticalMetric(
+    observed           = sum(sum(1 for r in b.rounds if r.round_type == "basic")
+                             for b in bets) / total_bets,
+    standard_deviation = sample_std([sum(1 for r in b.rounds if r.round_type == "basic")
+                                     for b in bets]),
+    sample_size        = total_bets,
+)
 ```
-
-In the current engine flow, this is expected to reflect one initial basic round per bet, but metrics only report the observed value.
 
 ### 6.4.5 Average Free Rounds per Bet
 
-Computed from round partition:
-
 ```python
-avg_free_rounds_per_bet =
-    count(free rounds) / total_bets
+avg_free_rounds_per_bet = StatisticalMetric(
+    observed           = sum(sum(1 for r in b.rounds if r.round_type == "free")
+                             for b in bets) / total_bets,
+    standard_deviation = sample_std([sum(1 for r in b.rounds if r.round_type == "free")
+                                     for b in bets]),
+    sample_size        = total_bets,
+)
 ```
-
 
 ### 6.4.6 Average Rolls per Bet
 
 ```python
-avg_rolls_per_bet = total_rolls / total_bets
+avg_rolls_per_bet = StatisticalMetric(
+    observed           = total_rolls / total_bets,
+    standard_deviation = sample_std([sum(r.roll_count for r in b.rounds) for b in bets]),
+    sample_size        = total_bets,
+)
 ```
 
 ## 6.5 Bet Volatility-Oriented Descriptive Metrics
@@ -429,31 +570,20 @@ These metrics describe spread and concentration only.
 ### 6.5.1 Bet Win Multiple Mean
 
 ```python
-mean_bet_win_multiple =
-    sum(bet.bet_win_amount / bet_level for bet in bets) / total_bets
+mean_bet_win_multiple = StatisticalMetric(
+    observed           = sum(b.bet_win_amount / bet_level for b in bets) / total_bets,
+    standard_deviation = sample_std([b.bet_win_amount / bet_level for b in bets]),
+    sample_size        = total_bets,
+)
 ```
 
 ### 6.5.2 Bet Win Multiple Variance
 
-Computed from:
-
 ```python
-bet_win_multiple_values =
-    [bet.bet_win_amount / bet_level for bet in bets]
+bet_win_multiple_variance = sample_var([b.bet_win_amount / bet_level for b in bets])
 ```
 
-Variance is computed over bet_win_multiple_values.
-
-### 6.5.3 Bet Win Multiple Standard Deviation
-
-Computed from:
-
-```python
-bet_win_multiple_values =
-    [bet.bet_win_amount / bet_level for bet in bets]
-```
-
-Standard deviation is computed over bet_win_multiple_values.
+Optional. Scalar. Computed from the same series as `mean_bet_win_multiple`.
 
 ---
 
@@ -473,281 +603,262 @@ RoundMetrics = {
 }
 ```
 
+**Partition structure:** `basic` and `free` are partitions over the same metric definitions. For any metric that appears in both `basic` and `free` sections, the formula pattern is identical — only the input population differs (`basic_rounds` vs `free_rounds`, `basic_round_count` vs `free_round_count`). Formulas are shown explicitly in each section for implementation completeness.
+
+Partition populations are defined in §3 Partition Rule.
+
 ## 7.1 Round Core Metrics
 
 ### 7.1.1 Average Round Win Amount
 
 ```python
-avg_round_win_amount =
-    sum(round.round_win_amount for all rounds)
-    / total_rounds
+avg_round_win_amount = StatisticalMetric(
+    observed           = sum(r.round_win_amount for r in all_rounds) / total_rounds,
+    standard_deviation = sample_std([r.round_win_amount for r in all_rounds]),
+    sample_size        = total_rounds,
+)
 ```
 
 ### 7.1.2 Round Hit Frequency
 
 ```python
-round_hit_frequency =
-    count(round.round_win_amount > 0)
-    / total_rounds
+round_hit_frequency = StatisticalMetric(
+    observed           = len([r for r in all_rounds if r.round_win_amount > 0]) / total_rounds,
+    standard_deviation = sample_std([1 if r.round_win_amount > 0 else 0 for r in all_rounds]),
+    sample_size        = total_rounds,
+)
 ```
 
 ### 7.1.3 Base Symbol Win Amount
 
 ```python
-avg_base_symbol_win_amount_per_round =
-    sum(round.base_symbol_win_amount for all rounds)
-    / total_rounds
+avg_base_symbol_win_amount_per_round = StatisticalMetric(
+    observed           = sum(r.base_symbol_win_amount for r in all_rounds) / total_rounds,
+    standard_deviation = sample_std([r.base_symbol_win_amount for r in all_rounds]),
+    sample_size        = total_rounds,
+)
 ```
 
 ## 7.2 Basic Round Metrics
 
-Basic round metrics are computed from rounds where:
-
-```python
-round.round_type == "basic"
-```
+Partition: `basic_rounds`. `sample_size = basic_round_count`. Canonical formula variant for `round_type == "basic"`.
 
 ### 7.2.1 Basic Round Count
 
 ```python
-basic_round_count = count(round.round_type == "basic")
+basic_round_count = len(basic_rounds)
 ```
 
 ### 7.2.2 Average Basic Round Win Amount
 
 ```python
-avg_basic_round_win_amount =
-    sum(round.round_win_amount for basic rounds)
-    / basic_round_count
+avg_basic_round_win_amount = StatisticalMetric(
+    observed           = sum(r.round_win_amount for r in basic_rounds) / basic_round_count,
+    standard_deviation = sample_std([r.round_win_amount for r in basic_rounds]),
+    sample_size        = basic_round_count,
+)
 ```
 
 ### 7.2.3 Basic Round Hit Frequency
 
 ```python
-basic_round_hit_frequency =
-    count(round.round_win_amount > 0 for basic rounds)
-    / basic_round_count
+basic_round_hit_frequency = StatisticalMetric(
+    observed           = len([r for r in basic_rounds if r.round_win_amount > 0]) / basic_round_count,
+    standard_deviation = sample_std([1 if r.round_win_amount > 0 else 0 for r in basic_rounds]),
+    sample_size        = basic_round_count,
+)
 ```
 
 ### 7.2.4 Average Free Rounds Awarded (Basic Rounds)
 
 ```python
-avg_award_free_rounds_from_basic_round =
-    sum(round.award_free_rounds for basic rounds)
-    / basic_round_count
+avg_award_free_rounds_from_basic_round = StatisticalMetric(
+    observed           = sum(r.award_free_rounds for r in basic_rounds) / basic_round_count,
+    standard_deviation = sample_std([r.award_free_rounds for r in basic_rounds]),
+    sample_size        = basic_round_count,
+)
 ```
 
 ## 7.3 Free Round Metrics
 
-Free round metrics are computed from rounds where:
-
-```python
-round.round_type == "free"
-```
+Partition: `free_rounds`. `sample_size = free_round_count`. Same formula pattern as §7.2, applied to `free_rounds` / `free_round_count`.
 
 ### 7.3.1 Free Round Count
 
 ```python
-free_round_count = count(round.round_type == "free")
+free_round_count = len(free_rounds)
 ```
 
 ### 7.3.2 Average Free Round Win Amount
 
-```python
-avg_free_round_win_amount =
-    sum(round.round_win_amount for free rounds)
-    / free_round_count
-```
+`avg_free_round_win_amount` — same formula as `avg_basic_round_win_amount` (§7.2.2) with `free_rounds` / `free_round_count`.
 
 ### 7.3.3 Free Round Hit Frequency
 
-```python
-free_round_hit_frequency =
-    count(round.round_win_amount > 0 for free rounds)
-    / free_round_count
-```
+`free_round_hit_frequency` — same formula as `basic_round_hit_frequency` (§7.2.3) with `free_rounds` / `free_round_count`.
 
 ### 7.3.4 Average Free Rounds Awarded (Free Rounds)
 
-```python
-avg_award_free_rounds_from_free_round =
-    sum(round.award_free_rounds for free rounds)
-    / free_round_count
-```
-
+`avg_award_free_rounds_from_free_round` — same formula as `avg_award_free_rounds_from_basic_round` (§7.2.4) with `free_rounds` / `free_round_count`.
 
 ## 7.4 Round Multiplier Metrics
 
-These metrics describe multiplier behavior strictly based on recorded fields in `RoundRecord`.
-
-All metrics are partitioned by `round_type` where relevant, to reflect distinct multiplier dynamics in `basic` and `free` rounds.
+All metrics are partitioned by `round_type`. For each pair, the basic variant is shown with its canonical formula; the free variant uses the same formula with `free_rounds` / `free_round_count`.
 
 ### 7.4.1 Multiplier Increment Frequency (Basic Rounds)
 
 ```python
-basic_round_multiplier_increment_frequency =
-    count(round.round_multiplier_increment > 0 for basic rounds)
-    / basic_round_count
+basic_round_multiplier_increment_frequency = StatisticalMetric(
+    observed           = len([r for r in basic_rounds if r.round_multiplier_increment > 0]) / basic_round_count,
+    standard_deviation = sample_std([1 if r.round_multiplier_increment > 0 else 0 for r in basic_rounds]),
+    sample_size        = basic_round_count,
+)
 ```
 
 ### 7.4.2 Multiplier Increment Frequency (Free Rounds)
 
-```python
-free_round_multiplier_increment_frequency =
-    count(round.round_multiplier_increment > 0 for free rounds)
-    / free_round_count
-```
+`free_round_multiplier_increment_frequency` — same formula as `basic_round_multiplier_increment_frequency` (§7.4.1) with `free_rounds` / `free_round_count`.
 
 ### 7.4.3 Average Multiplier Increment (Basic Rounds)
 
 ```python
-avg_basic_round_multiplier_increment =
-    sum(round.round_multiplier_increment for basic rounds)
-    / basic_round_count
+avg_basic_round_multiplier_increment = StatisticalMetric(
+    observed           = sum(r.round_multiplier_increment for r in basic_rounds) / basic_round_count,
+    standard_deviation = sample_std([r.round_multiplier_increment for r in basic_rounds]),
+    sample_size        = basic_round_count,
+)
 ```
 
 ### 7.4.4 Average Multiplier Increment (Free Rounds)
 
-```python
-avg_free_round_multiplier_increment =
-    sum(round.round_multiplier_increment for free rounds)
-    / free_round_count
-```
+`avg_free_round_multiplier_increment` — same formula as `avg_basic_round_multiplier_increment` (§7.4.3) with `free_rounds` / `free_round_count`.
 
 ### 7.4.5 Maximum Multiplier Increment
 
 ```python
 max_round_multiplier_increment =
-    max(round.round_multiplier_increment for all rounds)
+    max(r.round_multiplier_increment for r in all_rounds)
 ```
 
 ### 7.4.6 Average Round Total Multiplier (Basic Rounds)
 
 ```python
-avg_basic_round_total_multiplier =
-    sum(round.round_total_multiplier for basic rounds)
-    / basic_round_count
+avg_basic_round_total_multiplier = StatisticalMetric(
+    observed           = sum(r.round_total_multiplier for r in basic_rounds) / basic_round_count,
+    standard_deviation = sample_std([r.round_total_multiplier for r in basic_rounds]),
+    sample_size        = basic_round_count,
+)
 ```
 
 ### 7.4.7 Average Round Total Multiplier (Free Rounds)
 
-```python
-avg_free_round_total_multiplier =
-    sum(round.round_total_multiplier for free rounds)
-    / free_round_count
-```
+`avg_free_round_total_multiplier` — same formula as `avg_basic_round_total_multiplier` (§7.4.6) with `free_rounds` / `free_round_count`.
 
 ### 7.4.8 Maximum Round Total Multiplier
 
 ```python
 max_round_total_multiplier =
-    max(round.round_total_multiplier for all rounds)
+    max(r.round_total_multiplier for r in all_rounds)
 ```
 
 ### 7.4.9 Average Carried Multiplier at Free Round Start
 
-Carried multiplier accumulation is only meaningful in free rounds.
+Carried multiplier is only meaningful in free rounds.
 
 ```python
-avg_carried_multiplier_at_free_round_start =
-    sum(round.carried_multiplier for free rounds)
-    / free_round_count
+avg_carried_multiplier_at_free_round_start = StatisticalMetric(
+    observed           = sum(r.carried_multiplier for r in free_rounds) / free_round_count,
+    standard_deviation = sample_std([r.carried_multiplier for r in free_rounds]),
+    sample_size        = free_round_count,
+)
 ```
 
 ### 7.4.10 Maximum Carried Multiplier
 
 ```python
 max_carried_multiplier =
-    max(round.carried_multiplier for all rounds)
+    max(r.carried_multiplier for r in all_rounds)
 ```
 
 ### 7.4.11 Multiplier Contribution (Basic Rounds)
 
 ```python
-avg_multiplier_contribution_per_round_basic_rounds =
-    sum(
-        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
-        for basic rounds
-    )
-    / basic_round_count
+avg_multiplier_contribution_per_round_basic_rounds = StatisticalMetric(
+    observed           = sum(
+                             r.base_symbol_win_amount * (r.round_total_multiplier - 1)
+                             for r in basic_rounds
+                         ) / basic_round_count,
+    standard_deviation = sample_std([
+                             r.base_symbol_win_amount * (r.round_total_multiplier - 1)
+                             for r in basic_rounds
+                         ]),
+    sample_size        = basic_round_count,
+)
 ```
 
 ### 7.4.12 Multiplier Contribution (Free Rounds)
 
-```python
-avg_multiplier_contribution_per_round_free_rounds =
-    sum(
-        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
-        for free rounds
-    )
-    / free_round_count
-```
+`avg_multiplier_contribution_per_round_free_rounds` — same formula as `avg_multiplier_contribution_per_round_basic_rounds` (§7.4.11) with `free_rounds` / `free_round_count`.
 
 ## 7.5 Round Scatter Metrics
+
+All metrics follow the same partition pattern as §7.4. Basic-partition formula shown first; free-partition variant uses the same formula with `free_rounds` / `free_round_count`.
 
 ### 7.5.1 Average Scatter Increment (Basic Rounds)
 
 ```python
-avg_round_scatter_increment_basic_rounds =
-    sum(round.round_scatter_increment for basic rounds)
-    / basic_round_count
+avg_round_scatter_increment_basic_rounds = StatisticalMetric(
+    observed           = sum(r.round_scatter_increment for r in basic_rounds) / basic_round_count,
+    standard_deviation = sample_std([r.round_scatter_increment for r in basic_rounds]),
+    sample_size        = basic_round_count,
+)
 ```
 
 ### 7.5.2 Average Scatter Increment (Free Rounds)
 
-```python
-avg_round_scatter_increment_free_rounds =
-    sum(round.round_scatter_increment for free rounds)
-    / free_round_count
-```
+`avg_round_scatter_increment_free_rounds` — same formula as `avg_round_scatter_increment_basic_rounds` (§7.5.1) with `free_rounds` / `free_round_count`.
 
 ### 7.5.3 Scatter Win Frequency (Basic Rounds)
 
 ```python
-scatter_win_frequency_basic_rounds =
-    count(round.scatter_win_amount > 0 for basic rounds)
-    / basic_round_count
+scatter_win_frequency_basic_rounds = StatisticalMetric(
+    observed           = len([r for r in basic_rounds if r.scatter_win_amount > 0]) / basic_round_count,
+    standard_deviation = sample_std([1 if r.scatter_win_amount > 0 else 0 for r in basic_rounds]),
+    sample_size        = basic_round_count,
+)
 ```
 
 ### 7.5.4 Scatter Win Frequency (Free Rounds)
 
-```python
-scatter_win_frequency_free_rounds =
-    count(round.scatter_win_amount > 0 for free rounds)
-    / free_round_count
-```
+`scatter_win_frequency_free_rounds` — same formula as `scatter_win_frequency_basic_rounds` (§7.5.3) with `free_rounds` / `free_round_count`.
 
 ### 7.5.5 Average Scatter Win Amount (Basic Rounds)
 
 ```python
-avg_scatter_win_amount_basic_rounds =
-    sum(round.scatter_win_amount for basic rounds)
-    / basic_round_count
+avg_scatter_win_amount_basic_rounds = StatisticalMetric(
+    observed           = sum(r.scatter_win_amount for r in basic_rounds) / basic_round_count,
+    standard_deviation = sample_std([r.scatter_win_amount for r in basic_rounds]),
+    sample_size        = basic_round_count,
+)
 ```
 
 ### 7.5.6 Average Scatter Win Amount (Free Rounds)
 
-```python
-avg_scatter_win_amount_free_rounds =
-    sum(round.scatter_win_amount for free rounds)
-    / free_round_count
-```
+`avg_scatter_win_amount_free_rounds` — same formula as `avg_scatter_win_amount_basic_rounds` (§7.5.5) with `free_rounds` / `free_round_count`.
 
 ### 7.5.7 Free-Round Award Frequency (Basic Rounds)
 
 ```python
-award_free_round_frequency_basic_rounds =
-    count(round.award_free_rounds > 0 for basic rounds)
-    / basic_round_count
+award_free_round_frequency_basic_rounds = StatisticalMetric(
+    observed           = len([r for r in basic_rounds if r.award_free_rounds > 0]) / basic_round_count,
+    standard_deviation = sample_std([1 if r.award_free_rounds > 0 else 0 for r in basic_rounds]),
+    sample_size        = basic_round_count,
+)
 ```
 
 ### 7.5.8 Free-Round Award Frequency (Free Rounds)
 
-```python
-award_free_round_frequency_free_rounds =
-    count(round.award_free_rounds > 0 for free rounds)
-    / free_round_count
-``` 
+`award_free_round_frequency_free_rounds` — same formula as `award_free_round_frequency_basic_rounds` (§7.5.7) with `free_rounds` / `free_round_count`.
 
 ## 7.6 Round Distribution Metrics
 
@@ -755,42 +866,42 @@ award_free_round_frequency_free_rounds =
 
 ```python
 round_win_amount_distribution_all_rounds =
-    [round.round_win_amount for all rounds]
+    [r.round_win_amount for r in all_rounds]
 ```
 
 ### 7.6.2 Round Win Amount Distribution (Basic Rounds)
 
 ```python
 round_win_amount_distribution_basic_rounds =
-    [round.round_win_amount for basic rounds]
+    [r.round_win_amount for r in basic_rounds]
 ```
 
 ### 7.6.3 Round Win Amount Distribution (Free Rounds)
 
 ```python
 round_win_amount_distribution_free_rounds =
-    [round.round_win_amount for free rounds]
+    [r.round_win_amount for r in free_rounds]
 ```
 
 ### 7.6.4 Base Symbol Win Amount Distribution (All Rounds)
 
 ```python
 base_symbol_win_amount_distribution_all_rounds =
-    [round.base_symbol_win_amount for all rounds]
+    [r.base_symbol_win_amount for r in all_rounds]
 ```
 
 ### 7.6.5 Base Symbol Win Amount Distribution (Basic Rounds)
 
 ```python
 base_symbol_win_amount_distribution_basic_rounds =
-    [round.base_symbol_win_amount for basic rounds]
+    [r.base_symbol_win_amount for r in basic_rounds]
 ```
 
 ### 7.6.6 Base Symbol Win Amount Distribution (Free Rounds)
 
 ```python
 base_symbol_win_amount_distribution_free_rounds =
-    [round.base_symbol_win_amount for free rounds]
+    [r.base_symbol_win_amount for r in free_rounds]
 ```
 
 ### 7.6.7 Multiplier Contribution Distribution (Basic Rounds)
@@ -798,8 +909,8 @@ base_symbol_win_amount_distribution_free_rounds =
 ```python
 multiplier_contribution_distribution_basic_rounds =
     [
-        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
-        for basic rounds
+        r.base_symbol_win_amount * (r.round_total_multiplier - 1)
+        for r in basic_rounds
     ]
 ```
 
@@ -808,8 +919,8 @@ multiplier_contribution_distribution_basic_rounds =
 ```python
 multiplier_contribution_distribution_free_rounds =
     [
-        round.base_symbol_win_amount * (round.round_total_multiplier - 1)
-        for free rounds
+        r.base_symbol_win_amount * (r.round_total_multiplier - 1)
+        for r in free_rounds
     ]
 ```
 
@@ -817,35 +928,35 @@ multiplier_contribution_distribution_free_rounds =
 
 ```python
 scatter_win_amount_distribution_all_rounds =
-    [round.scatter_win_amount for all rounds]
+    [r.scatter_win_amount for r in all_rounds]
 ```
 
 ### 7.6.10 Scatter Win Amount Distribution (Basic Rounds)
 
 ```python
 scatter_win_amount_distribution_basic_rounds =
-    [round.scatter_win_amount for basic rounds]
+    [r.scatter_win_amount for r in basic_rounds]
 ```
 
 ### 7.6.11 Scatter Win Amount Distribution (Free Rounds)
 
 ```python
 scatter_win_amount_distribution_free_rounds =
-    [round.scatter_win_amount for free rounds]
+    [r.scatter_win_amount for r in free_rounds]
 ```
 
 ### 7.6.12 Round Total Multiplier Distribution (Basic Rounds)
 
 ```python
 round_total_multiplier_distribution_basic_rounds =
-    [round.round_total_multiplier for basic rounds]
+    [r.round_total_multiplier for r in basic_rounds]
 ```
 
 ### 7.6.13 Round Total Multiplier Distribution (Free Rounds)
 
 ```python
 round_total_multiplier_distribution_free_rounds =
-    [round.round_total_multiplier for free rounds]
+    [r.round_total_multiplier for r in free_rounds]
 ```
 
 ## 7.7 Round Structure Metrics
@@ -855,16 +966,18 @@ structure metrics are mechanism-independent and must not be partitioned by round
 ### 7.7.1 Average Rolls per Round
 
 ```python
-avg_roll_count_per_round =
-    sum(round.roll_count for all rounds)
-    / total_rounds
+avg_roll_count_per_round = StatisticalMetric(
+    observed           = sum(r.roll_count for r in all_rounds) / total_rounds,
+    standard_deviation = sample_std([r.roll_count for r in all_rounds]),
+    sample_size        = total_rounds,
+)
 ```
 
 ### 7.7.2 Roll Count Distribution per Round
 
 ```python
 roll_count_distribution =
-    [round.roll_count for all rounds]
+    [r.roll_count for r in all_rounds]
 ```
 
 ---
@@ -887,17 +1000,21 @@ RollMetrics = {
 ### 8.1.1 Average Roll Win Amount
 
 ```python
-avg_roll_win_amount =
-    sum(roll.roll_win_amount for all rolls)
-    / total_rolls
+avg_roll_win_amount = StatisticalMetric(
+    observed           = sum(roll.roll_win_amount for roll in all_rolls) / total_rolls,
+    standard_deviation = sample_std([roll.roll_win_amount for roll in all_rolls]),
+    sample_size        = total_rolls,
+)
 ```
 
 ### 8.1.2 Roll Hit Frequency
 
 ```python
-roll_hit_frequency =
-    count(roll.roll_win_amount > 0)
-    / total_rolls
+roll_hit_frequency = StatisticalMetric(
+    observed           = len([roll for roll in all_rolls if roll.roll_win_amount > 0]) / total_rolls,
+    standard_deviation = sample_std([1 if roll.roll_win_amount > 0 else 0 for roll in all_rolls]),
+    sample_size        = total_rolls,
+)
 ```
 
 ### 8.1.3 Roll Type Distribution
@@ -905,61 +1022,61 @@ roll_hit_frequency =
 ```python
 roll_type_distribution =
     {
-        "initial": count(roll.roll_type == "initial") / total_rolls,
-        "cascade": count(roll.roll_type == "cascade") / total_rolls,
+        "initial": len([roll for roll in all_rolls if roll.roll_type == "initial"]) / total_rolls,
+        "cascade": len([roll for roll in all_rolls if roll.roll_type == "cascade"]) / total_rolls,
     }
 ```
-
-This metric is descriptive only.
-
-It reflects the structural composition of rolls (initial vs cascade),
-and does not carry gameplay or payout significance.
 
 ## 8.2 Roll Multiplier Metrics
 
 ### 8.2.1 Average Multiplier Symbols per Roll
 
 ```python
-avg_roll_multi_symbols_num =
-    sum(roll.roll_multi_symbols_num for all rolls)
-    / total_rolls
+avg_roll_multi_symbols_num = StatisticalMetric(
+    observed           = sum(roll.roll_multi_symbols_num for roll in all_rolls) / total_rolls,
+    standard_deviation = sample_std([roll.roll_multi_symbols_num for roll in all_rolls]),
+    sample_size        = total_rolls,
+)
 ```
 
 ### 8.2.2 Multiplier-Symbol Roll Frequency
 
 ```python
-roll_with_multiplier_symbol_frequency =
-    count(roll.roll_multi_symbols_num > 0)
-    / total_rolls
+roll_with_multiplier_symbol_frequency = StatisticalMetric(
+    observed           = len([roll for roll in all_rolls if roll.roll_multi_symbols_num > 0]) / total_rolls,
+    standard_deviation = sample_std([1 if roll.roll_multi_symbols_num > 0 else 0 for roll in all_rolls]),
+    sample_size        = total_rolls,
+)
 ```
 
 ### 8.2.3 Total Multiplier Symbols
 
 ```python
 total_roll_multi_symbols_num =
-    sum(roll.roll_multi_symbols_num for all rolls)
+    sum(roll.roll_multi_symbols_num for roll in all_rolls)
 ```
 
 ### 8.2.4 Multiplier Carry Value Distribution
 
 ```python
 multiplier_carry_value_distribution =
-    [value for all rolls for value in roll.roll_multi_symbols_carry]
+    [v for roll in all_rolls for v in roll.roll_multi_symbols_carry]
 ```
 
 ### 8.2.5 Average Multiplier Carry Value
 
 ```python
-avg_multiplier_carry_value =
-    sum(all values in all roll.roll_multi_symbols_carry)
-    / count(all values in all roll.roll_multi_symbols_carry)
+carry_values = [v for roll in all_rolls for v in roll.roll_multi_symbols_carry]
+avg_multiplier_carry_value = sum(carry_values) / len(carry_values)
 ```
+
+Scalar. Filtered to rolls with multiplier symbols — NOT CI-eligible.
 
 ### 8.2.6 Maximum Multiplier Carry Value
 
 ```python
 max_multiplier_carry_value =
-    max(value for all rolls for value in roll.roll_multi_symbols_carry)
+    max(v for roll in all_rolls for v in roll.roll_multi_symbols_carry)
 ```
 
 ## 8.3 Roll Scatter Metrics
@@ -967,24 +1084,28 @@ max_multiplier_carry_value =
 ### 8.3.1 Average Scatter Symbols per Roll
 
 ```python
-avg_roll_scatter_symbols_num =
-    sum(roll.roll_scatter_symbols_num for all rolls)
-    / total_rolls
+avg_roll_scatter_symbols_num = StatisticalMetric(
+    observed           = sum(roll.roll_scatter_symbols_num for roll in all_rolls) / total_rolls,
+    standard_deviation = sample_std([roll.roll_scatter_symbols_num for roll in all_rolls]),
+    sample_size        = total_rolls,
+)
 ```
 
 ### 8.3.2 Scatter-Containing Roll Frequency
 
 ```python
-roll_with_scatter_symbol_frequency =
-    count(roll.roll_scatter_symbols_num > 0)
-    / total_rolls
+roll_with_scatter_symbol_frequency = StatisticalMetric(
+    observed           = len([roll for roll in all_rolls if roll.roll_scatter_symbols_num > 0]) / total_rolls,
+    standard_deviation = sample_std([1 if roll.roll_scatter_symbols_num > 0 else 0 for roll in all_rolls]),
+    sample_size        = total_rolls,
+)
 ```
 
 ### 8.3.3 Scatter Symbol Count Distribution per Roll
 
 ```python
 scatter_symbol_count_distribution_per_roll =
-    [roll.roll_scatter_symbols_num for all rolls]
+    [roll.roll_scatter_symbols_num for roll in all_rolls]
 ```
 
 ## 8.4 Roll Distribution Metrics
@@ -993,7 +1114,7 @@ scatter_symbol_count_distribution_per_roll =
 
 ```python
 roll_win_amount_distribution =
-    [roll.roll_win_amount for all rolls]
+    [roll.roll_win_amount for roll in all_rolls]
 ```
 
 ### 8.4.2 Roll Win Amount Quantiles
@@ -1008,7 +1129,7 @@ Computed from:
 
 ```python
 roll_win_amount_quantiles =
-    [roll.roll_win_amount for all rolls]
+    [roll.roll_win_amount for roll in all_rolls]
 ```
 
 ---

@@ -398,10 +398,18 @@ run_simulation(config, seed) -> CanonicalResult
 
 compute_metrics(result) -> MetricsBundle
 
-validate_metrics(metrics, rules) -> ValidationReport
+# Validation is composed of three independent categories:
+validate_structure(canonical_result, config) -> StructuralValidationReport
+validate_statistics(metrics, validation_rules) -> StatisticalValidationReport
+validate_regression(metrics, baseline_metrics) -> RegressionValidationReport
+
+# Full validation entry point aggregates all three:
+run_validation(canonical_result, config, metrics, validation_rules, baseline_metrics) -> ValidationReport
 
 run_pipeline(config, seed) -> PipelineArtifact
 ```
+
+The three validation categories are independent. `validate_structure` consumes `CanonicalResult` and config only. `validate_statistics` consumes `MetricsBundle` and rules only. `validate_regression` consumes `MetricsBundle` and baseline metrics only. None of them modify upstream data.
 
 ---
 
