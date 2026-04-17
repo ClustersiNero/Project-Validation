@@ -1,170 +1,164 @@
-## 1. What this system validates
-
-This system validates whether a slot math implementation is **correct, reproducible, and statistically consistent** with its predefined design.
-
-It validates:
-
-* whether the implemented game logic matches the intended math specification
-* whether the result generation flow is reproducible under fixed seed and fixed config
-* whether empirical RTP is within an acceptable statistical range
-* whether key distribution indicators are within expected bounds
-* whether different modes or configurations behave consistently with their definitions
-
-In short, this system validates:
-
-> implementation correctness + model consistency + statistical acceptability
+# System Scope Specification
 
 ---
 
-## 2. What this system does NOT validate
+## 1. Purpose
 
-This system does NOT validate:
+This document defines the **scope and boundary** of the validation system.
 
-* whether players will enjoy the game
-* whether live retention or monetization will be good
-* whether actual player behavior matches simulated assumptions
-* whether the product design is commercially strong
-* whether the game should be adjusted after launch for business reasons
+It clarifies:
 
-It also does NOT perform:
+* what this system is responsible for
+* what this system is NOT responsible for
+* what “correctness” means in this project
+
+This document **does NOT define**:
+
+* implementation rules
+* data schemas
+* metric calculations
+* validation logic
+
+All executable definitions MUST be defined in:
+
+* architecture_spec.md
+* config_spec.md
+* engine_spec.md
+* canonical_spec.md
+* metrics_spec.md
+* validation_spec.md
+
+---
+
+## 2. System Goal
+
+This system is a:
+
+```text
+validation-first slot math system
+```
+
+Its purpose is to determine whether a slot game implementation is:
+
+* correct
+* reproducible
+* statistically consistent with its predefined design
+
+---
+
+## 3. What This System Validates
+
+This system validates:
+
+### 3.1 Implementation correctness
+
+Whether the implementation follows the predefined rules.
+
+Examples include:
+
+* payout mapping correctness
+* trigger logic correctness
+* symbol weight application correctness
+* mode-specific behavior correctness
+
+---
+
+### 3.2 Reproducibility
+
+Whether the system produces identical results under identical inputs.
+
+This requires:
+
+* fixed seed
+* fixed config
+* deterministic execution
+
+---
+
+### 3.3 Statistical consistency
+
+Whether observed results are consistent with expected behavior.
+
+Important:
+
+* validation is statistical, not exact equality
+* results must be interpretable under sampling uncertainty
+
+---
+
+## 4. What This System Does NOT Do
+
+This system does NOT:
+
+* predict player behavior
+* evaluate retention or monetization
+* optimize game design
+* validate commercial performance
+
+This system also MUST NOT perform:
 
 * runtime balancing
-* player-dependent outcome shaping
 * adaptive probability adjustment
-* any control logic that changes outcome generation based on historical results or player state
-
-In short:
-
-> this is a model validation system, not a player behavior prediction system, and not a runtime control system
+* player-dependent logic
+* outcome steering
 
 ---
 
-## 3. What correctness means
+## 5. Definition of Correctness
 
-In this project, correctness means the system behaves exactly according to its predefined rules and configuration.
+Correctness in this system includes three layers:
 
-Correctness includes three layers:
+### 5.1 Implementation correctness
 
-### A. Implementation correctness
+The implementation faithfully follows the defined rules.
 
-The implemented logic matches the written game rules and math design.
+---
 
-Examples:
+### 5.2 Reproducibility correctness
 
-* payout mapping is correct
-* trigger logic is correct
-* symbol weights are correctly applied
-* mode-specific rules are correctly executed
+The same inputs always produce the same outputs.
 
-### B. Reproducibility correctness
-
-The same seed, config, mode, and input should produce the same result sequence.
-
-This means:
+There must be:
 
 * no hidden randomness
 * no uncontrolled state mutation
-* no environment-dependent drift
-
-### C. Validation correctness
-
-The observed results are statistically consistent with the expected design, within a defined uncertainty range.
-
-This means:
-
-* RTP is not judged by a single exact number
-* deviation must be interpreted with sample size and variance
-* passing validation means “consistent with expectation,” not “exactly equal”
-
-So correctness here is not just “code runs.”
-
-It means:
-
-> the implementation is faithful, reproducible, and statistically defensible
+* no environment-dependent behavior
 
 ---
 
-## 4. What acceptable deviation means
+### 5.3 Validation correctness
 
-Acceptable deviation is the range within which an observed metric can differ from its expected target without implying a model or implementation problem.
+Observed results are consistent with expectations under defined validation rules.
 
-This is necessary because simulation results always contain sampling noise.
+Important:
 
-Acceptable deviation should be defined by:
-
-* sample size
-* variance of the underlying payout distribution
-* confidence level
-* metric type
-
-Examples:
-
-* RTP may be validated with a confidence interval or tolerance band
-* hit frequency may use a separate deviation rule
-* distribution metrics may require looser interpretation than simple mean metrics
-
-Important boundaries:
-
-* acceptable deviation is not arbitrary
-* it must come from a stated rule
-* passing does not mean “perfectly equal”
-* failing does not automatically mean “the math is wrong”; it may indicate insufficient sample size, implementation error, or model inconsistency
-
-So acceptable deviation means:
-
-> the difference is small enough to remain statistically explainable under the chosen validation rule
+* validation rules are defined in validation_spec.md
+* this document does NOT define those rules
 
 ---
 
-## 5. Boundary between model validation and live behavior validation
+## 6. Boundary of This System
 
-This boundary must stay explicit.
+This system operates under controlled simulation conditions.
 
-### Model validation answers:
+It answers:
 
-* Is the implemented system mathematically consistent with its predefined design?
-* Does the simulation output support the expected RTP and distribution behavior?
-* Are the observed results reproducible and statistically acceptable?
+* does the implementation match the specification?
+* is the system reproducible?
+* are results statistically consistent?
 
-### Live behavior validation answers:
+It does NOT answer:
 
-* How do real players actually behave?
-* Do players change bet size, session length, or mode preference?
-* Does the game perform well in retention, engagement, and monetization?
-
-The first belongs to this system.
-The second does not.
-
-This project can provide a clean baseline for later live analysis, but it cannot replace live data.
-
-Simulation validates the model.
-Live data validates behavioral assumptions.
-
-So the boundary is:
-
-> this system proves whether the game math behaves as designed, but it does not prove whether real players will behave as expected
+* how real players behave
+* whether the game performs well in production
 
 ---
 
-## 6. Scope summary
+## 7. One-Line Summary
 
-This system is a **validation-first slot math system**.
-
-Its job is to determine whether a game implementation is:
-
-* faithful to specification
-* reproducible under controlled inputs
-* statistically consistent with predefined expectations
-
-Its job is not to:
-
-* predict player behavior
-* optimize commercial performance
-* manipulate runtime outcomes
-* replace live product analysis
-
-One-line summary:
-
-> This system validates game math correctness under controlled conditions; it does not validate market performance or player behavior.
+```text
+This system validates mathematical correctness under controlled conditions.
+It does not model player behavior or perform runtime control.
+```
 
 ---

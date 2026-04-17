@@ -1,205 +1,335 @@
-# Copilot Working Charter For This Repository
+# Copilot Working Charter — Validation Project
 
-This file defines persistent implementation rules for Copilot in this repository.
+This file defines **strict implementation rules** for Copilot in this repository.
 
-## 1. Authoritative Documents
+---
 
-Always treat the following files as the primary source of truth:
+## 1. Single Source of Truth (MANDATORY)
 
-- docs/General Provisions/system_scope_spec.md
-- docs/General Provisions/architecture_spec.md
-- docs/General Provisions/canonical_spec.md
-- docs/General Provisions/metrics_spec.md
-- docs/General Provisions/validation_spec.md
-- docs/General Provisions/artifact_metadata_spec.md
-- docs/Component/Recommended Directory Structure.md
-- docs/14_day_upgrade_schedule.md
+The ONLY authoritative documents are:
 
-When there is any conflict:
+* system_scope_spec.md
+* architecture_spec.md
+* config_spec.md
+* engine_spec.md
+* canonical_spec.md
+* metrics_spec.md
+* validation_spec.md
 
-1. system_scope_spec.md
-2. architecture_spec.md
-3. canonical_spec.md
-4. metrics_spec.md
-5. validation_spec.md
-6. artifact_metadata_spec.md
-7. Recommended Directory Structure.md
-8. 14_day_upgrade_schedule.md
+### Authority rule
 
-## 2. Mandatory Architecture Discipline
+* All implementation MUST follow these specs
+* If any conflict exists → specs override all other files
+* No file may redefine semantics defined in specs
 
-Always keep layer order:
+### Non-authoritative files
 
-config -> engine -> canonical -> metrics -> validation -> optional export
+The following are reference only (NOT sources of truth):
 
-Do not mix responsibilities:
+* directory structure suggestions
+* ADR / notes / roadmap
+* scripts / CLI / pipeline helpers
+* legacy_reference/
 
-- Engine must not depend on metrics or validation.
-- Metrics must be descriptive only.
-- Validation must not modify upstream data.
+They MUST NOT:
 
-## 3. Canonical / Metrics / Validation Contracts
+* define new rules
+* override spec semantics
+* introduce parallel concepts
 
-CanonicalResult must remain deterministic, neutral, and replayable.
+---
 
-Required canonical guarantees:
+## 2. Mandatory Layering (CANNOT BE BROKEN)
 
-- run / wagers / summary structure
-- wager -> round -> roll state path completeness
-- no control semantics
-- no statistical interpretation fields
+Strict architecture:
 
-MetricsBundle must include:
+config → engine → canonical → metrics → validation
 
-- meta
-- core
-- distribution
-- tail
-- optional
+### Responsibilities
 
-Metrics must not contain thresholds, verdicts, or correctness judgement.
+* config
+  defines possibility space only
 
-ValidationReport must include:
+* engine
+  deterministic result generation only
 
-- meta
-- checks
-- summary
+* canonical
+  full record only (no interpretation)
 
-Validation checks must be explicit, reproducible, and explainable.
+* metrics
+  descriptive computation only (no judgement)
 
-## 4. Safety Boundaries
+* validation
+  judgement only (no data modification)
 
-Never introduce runtime outcome steering behavior, including:
+### Forbidden
 
-- reroll
-- protect
-- range filtering
-- waterline / pool / control-level semantics
-- player-history-based adjustment
-- adaptive probability logic
-- any runtime outcome shaping
+* cross-layer logic
+* hidden dependencies
+* upstream data mutation
 
-## 5. Change Strategy
+---
 
-Prefer small, testable, deterministic changes.
+## 3. Naming Contract (STRICT)
 
-Do not rebuild from scratch when the current repository already has a compatible structure.
+Only allowed hierarchy:
 
-Prefer:
+Bet → Round → Roll
 
-- reading existing code first
-- reusing current dataclasses, interfaces, and naming
-- making minimal compatible changes
-- preserving current layer boundaries
+### Forbidden terms
 
-## 6. Legacy Reference Code Rules
+* wager
+* stake
+* spin
+* step
 
-A `legacy_reference/` directory may exist in this repository.
+### Rules
 
-It is reference material only.
+* naming must match specs exactly
+* no parallel terminology
+* no legacy naming carry-over
 
-Use it to:
+---
 
-- understand real round / feature / cascade behavior
-- identify payout timing, trigger timing, and state transitions
-- recover valid predefined game logic
+## 4. Determinism & Reproducibility
 
-Do not treat it as:
+The system MUST be:
 
-- source of truth
-- production-ready code
-- code to copy directly
-- naming authority
+* deterministic under fixed seed + config
+* fully reproducible
+* audit-ready
 
-When using legacy code:
+### Forbidden
 
-- reference, do not copy
-- retain valid predefined game logic only
-- actively identify and delete unsafe control logic
-- rewrite retained logic into the current architecture
+* hidden randomness
+* environment-dependent behavior
+* uncontrolled state mutation
 
-If legacy code mixes valid logic with unsafe logic:
+---
 
-- split them conceptually first
-- keep only the valid predefined generation logic
-- discard the control layer entirely
+## 5. Safety Boundaries (HARD BLOCK)
 
-## 7. Naming Migration Rule
+NEVER introduce:
 
-Migrate semantics, not naming.
+* reroll
+* filter / accept-reject
+* runtime probability adjustment
+* player-dependent logic
+* adaptive behavior
+* outcome steering
+* control-level / pool / protection logic
 
-Legacy naming may differ from current repository terminology.
-For example:
+This system is:
 
-- legacy `stake` may correspond to current `wager`
-- legacy hierarchy names may not match current `wager -> round -> roll`
+* validation system
+  NOT:
+* runtime control system
 
-Therefore:
+---
 
-- do not preserve legacy names by default
-- first identify actual meaning
-- then map it into current repository terminology
-- keep naming aligned with current files, not legacy files
+## 6. Canonical / Metrics / Validation Contracts
 
-Priority for naming decisions:
+### Canonical
 
-1. current repository schema and dataclass fields
-2. current layer responsibility
-3. actual semantic meaning
-4. legacy naming only as historical reference
+MUST be:
 
-## 8. Current Priority
+* deterministic
+* neutral
+* complete
+* replayable
 
-Current priority is not adding more scaffolding.
+MUST NOT contain:
 
-Current priority is:
+* metrics
+* RTP
+* judgement
+* inferred states
 
-- first make engine round / feature / cascade behavior real
-- then let canonical naturally carry real wager -> round -> roll paths
-- then strengthen metrics and validation on top of real execution behavior
+---
 
-## 9. Engine Responsibility Boundary
+### Metrics
 
-For current implementation work, keep this split:
+MUST:
 
-- `engine/evaluator.py` = flow orchestration
-- `engine/board.py` = clear / refill / cascade / state progression
-- `engine/payout.py` = evaluation and settlement
-- `engine/runner.py` = top-level wager / run aggregation only
+* be computed from CanonicalResult only
+* be deterministic
+* be descriptive only
+
+MUST NOT:
+
+* include thresholds
+* include pass/fail
+* include validation logic
+
+---
+
+### Validation
+
+MUST:
+
+* consume MetricsBundle
+* produce ValidationReport
+
+MUST NOT:
+
+* modify canonical
+* modify metrics
+* recompute upstream logic
+
+---
+
+## 7. Implementation Strategy
+
+### General rule
+
+* prefer minimal changes
+* reuse existing structures
+* do not introduce parallel systems
+
+### Current priority
+
+ONLY focus on:
+
+1. engine correctness
+2. canonical completeness
+3. metrics correctness
+4. validation correctness
+
+DO NOT prioritize:
+
+* CLI
+* reporting
+* export
+* pipeline orchestration
+* performance optimization
+
+---
+
+## 8. Directory Usage Constraint (IMPORTANT)
+
+Even if directories exist, DO NOT expand:
+
+* configs/run
+* configs/export
+* scripts/
+* reporting/
+* pipeline/
+* CLI tools
+
+UNLESS explicitly required.
+
+Focus only on core layers.
+
+---
+
+## 9. Legacy Reference Rule
+
+If `legacy_reference/` exists:
+
+Allowed:
+
+* understand valid predefined logic
+* extract deterministic behavior
+
+Forbidden:
+
+* copying code directly
+* keeping control logic
+* keeping legacy naming
+
+Process:
+
+1. identify valid logic
+2. discard unsafe logic
+3. remap into current architecture
+
+---
 
 ## 10. Required Working Method
 
-Before writing migration code:
+Before implementing:
 
-1. read current repository files first
-2. read corresponding files under `legacy_reference/`
-3. identify:
-   - valid logic to retain
-   - unsafe logic to delete
-   - naming mismatches to remap
-4. state which current files will be modified
-5. only then write code
+1. read relevant spec sections
+2. locate corresponding code files
+3. confirm layer responsibility
+4. list files to modify
+5. implement minimal change
+6. When a legacy pattern conflicts with current specs, discard the legacy pattern immediately and follow the specs.
 
-Do not directly paste legacy code into current files.
-Do not preserve unsafe logic.
-Do not preserve legacy naming when it conflicts with current terminology.
+---
 
+## 11. Self-Check Checklist (REQUIRED)
 
-## 11. Self-Check Checklist
+After implementation, ALWAYS output:
 
-After completing any implementation task, always output a compact self-check checklist for review.
-
-Required checklist items:
 1. Files modified
-2. Why each file was changed
-3. What behavior changed before vs after
-4. Which existing rules / definition fields / interfaces were reused
-5. What behavior was intentionally kept unchanged
-6. Confirm that no forbidden logic was introduced:
-   - reroll
-   - filter / accept-reject
-   - runtime manipulation
-   - player-dependent logic
-7. Reviewer check points:
-   - which functions to inspect
-   - which variables / branches to inspect
+2. Why each file changed
+3. Behavior change (before vs after)
+4. Which spec rules were applied
+5. What was NOT changed
+6. Confirm NO forbidden logic introduced:
+
+   * reroll
+   * filtering
+   * runtime manipulation
+   * player-dependent logic
+7. Reviewer checkpoints:
+
+   * key functions
+   * key variables
+   * critical branches
+
+---
+
+## 12. Core Principle
+
+This is a validation-first system.
+
+Goal:
+
+* correctness
+* reproducibility
+* statistical consistency
+
+NOT:
+
+* game tuning
+* player modeling
+* commercial optimization
+
+---
+
+## 13. Legacy Reference Rule
+
+`legacy_reference/` is reference-only.
+
+It is NOT source of truth.
+
+Current implementation MUST follow the current spec files, not legacy files.
+
+Code from `legacy_reference/` MUST NOT be copied directly into the current implementation.
+
+Allowed reference scope:
+- deterministic RNG ideas
+- roll-level board progression
+- clear / gravity / refill order
+- other predefined deterministic behavior that does not conflict with current specs
+- reference must not introduce new implicit rules not defined in specs
+
+Forbidden legacy concepts:
+- pool
+- waterline
+- control_level
+- protect
+- reroll
+- odds_range gating
+- player/state-dependent adjustment
+- runtime probability adjustment
+- outcome steering
+
+Also forbidden:
+- inheriting legacy naming directly
+- inheriting legacy config keys directly
+- inheriting legacy interfaces directly
+
+Use legacy files only to understand old behavior, then remap valid parts into the current architecture and naming.
