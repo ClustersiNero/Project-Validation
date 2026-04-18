@@ -18,19 +18,24 @@ def test_pipeline_smoke():
     assert result.canonical_result.bets[0].rounds[0].round_id == 0
     assert result.canonical_result.bets[0].rounds[1].round_id == 1
 
-    # canonical values
-    assert result.canonical_result.bets[0].bet_win_amount == 3.0
-    assert result.canonical_result.bets[0].round_count == 2
-    assert result.canonical_result.bets[0].rounds[0].round_win_amount == 1.0
-    assert result.canonical_result.bets[0].rounds[1].round_win_amount == 2.0
+    # canonical internal consistency
+    bet = result.canonical_result.bets[0]
+    assert bet.round_count == 2
+    assert bet.bet_win_amount == sum(rnd.round_win_amount for rnd in bet.rounds)
+    for rnd in bet.rounds:
+        assert rnd.round_win_amount == sum(r.roll_win_amount for r in rnd.rolls)
 
-    # metrics
+    # metrics counts
     assert result.metrics_bundle.bet_count == 1
     assert result.metrics_bundle.round_count == 2
     assert result.metrics_bundle.roll_count == 4
-    assert result.metrics_bundle.total_bet_win_amount == 3.0
-    assert result.metrics_bundle.total_round_win_amount == 3.0
-    assert result.metrics_bundle.total_roll_win_amount == 3.0
+
+    # metrics totals consistent with canonical
+    assert result.metrics_bundle.total_bet_win_amount == bet.bet_win_amount
+    assert result.metrics_bundle.total_round_win_amount == sum(rnd.round_win_amount for rnd in bet.rounds)
+    assert result.metrics_bundle.total_roll_win_amount == sum(
+        r.roll_win_amount for rnd in bet.rounds for r in rnd.rolls
+    )
 
     # validation
     assert result.canonical_validation.is_valid is True

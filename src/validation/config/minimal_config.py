@@ -12,6 +12,7 @@ class MinimalRoundConfig:
 @dataclass
 class MinimalSimulationConfig:
     rounds: list[MinimalRoundConfig]
+    seed: int = 0
 
 
 class MinimalConfigModule(Protocol):
@@ -30,7 +31,7 @@ def normalize_minimal_config(raw_config: dict) -> MinimalSimulationConfig:
         )
         for round_data in raw_config["rounds"]
     ]
-    return MinimalSimulationConfig(rounds=rounds)
+    return MinimalSimulationConfig(rounds=rounds, seed=raw_config.get("seed", 0))
 
 
 def load_minimal_config(config_input: MinimalConfigSource) -> MinimalSimulationConfig:
@@ -48,8 +49,8 @@ def validate_minimal_config(config: MinimalSimulationConfig) -> None:
     for i, round_config in enumerate(config.rounds):
         if round_config.round_id != i:
             raise ValueError(f"config.rounds[{i}].round_id must equal its position")
-        if round_config.round_type != "basic":
-            raise ValueError(f"config.rounds[{i}].round_type must be 'basic'")
+        if round_config.round_type not in {"basic", "free"}:
+            raise ValueError(f"config.rounds[{i}].round_type must be 'basic' or 'free'")
         if not round_config.roll_wins:
             raise ValueError(f"config.rounds[{i}].roll_wins must be non-empty")
         for j, value in enumerate(round_config.roll_wins):
