@@ -1,4 +1,6 @@
-from validation.core.types import CanonicalResult, MetricsBundle, ValidationReport
+from validation.canonical.minimal_canonical import CanonicalResult
+from validation.metrics.minimal_metrics import MetricsBundle
+from validation.validation.minimal_validation import ValidationReport
 from validation.validation.minimal_validation import validate_canonical_impl, validate_metrics_impl
 
 

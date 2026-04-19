@@ -49,6 +49,7 @@ SimulationMetadata = {
 * `simulation_metadata` belongs to the simulation level, not the bet level.
 * bet_amount records the actual paid amount per bet
 * bet_level records the payout normalization base used for paytable evaluation
+* `timestamp` is audit metadata. It MUST be present, but it MUST NOT be generated from hidden runtime clock state when deterministic replay equality is required.
 
 ---
 
@@ -239,6 +240,15 @@ The following must hold:
 ```python
 (config, seed, engine_version) -> identical CanonicalResult
 ```
+
+Deterministic replay equality applies to outcome-bearing canonical data and to metadata fields that are determined by explicit inputs.
+
+`timestamp` is treated as audit metadata:
+
+* validation MUST check that `timestamp` is present and non-null
+* validation MAY check timestamp format if a format rule is declared
+* deterministic replay comparison MUST NOT fail solely because two otherwise identical runs have different externally recorded execution timestamps
+* if byte-for-byte CanonicalResult equality is required, `timestamp` MUST be supplied as an explicit input rather than generated from the current runtime clock
 
 ---
 

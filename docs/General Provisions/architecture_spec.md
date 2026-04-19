@@ -180,7 +180,7 @@ The exact CanonicalResult field schema is defined by canonical_spec.md.
 - bet_amount      (actual paid amount per bet)
 - bet_level       (payout normalization base)
 - total_bets
-- timestamp
+- timestamp       (audit metadata; presence required, not outcome-bearing)
 
 Each simulation contains one or more bets.
 mode indicates the entry mode of the bet (e.g. normal, buy_free, chance_increase)

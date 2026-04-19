@@ -1,5 +1,5 @@
-from validation.core.types import CanonicalResult, MetricsBundle
-from validation.metrics.minimal_metrics import compute_metrics_impl
+from validation.canonical.minimal_canonical import CanonicalResult
+from validation.metrics.minimal_metrics import MetricsBundle, compute_metrics_impl
 
 
 def compute_metrics(result: CanonicalResult) -> MetricsBundle:

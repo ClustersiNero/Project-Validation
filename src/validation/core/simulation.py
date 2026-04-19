@@ -1,5 +1,5 @@
 from validation.config.minimal_config import MinimalConfigSource, load_minimal_config, validate_minimal_config
-from validation.core.types import CanonicalResult
+from validation.canonical.minimal_canonical import CanonicalResult
 from validation.engine.minimal_engine import build_minimal_canonical_result
 from validation.engine.rng import RNG
 

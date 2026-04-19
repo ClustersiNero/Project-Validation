@@ -175,6 +175,8 @@ For `SimulationMetadata`, all of the following fields must be present and non-nu
 
 Verdict: `"fail"` if any required field is absent or null.
 
+`timestamp` is a structural audit metadata field. Structural validation MUST verify presence and non-nullness. It MUST NOT use timestamp value differences alone as evidence of outcome non-reproducibility. If timestamp format validation is required, the accepted format MUST be declared explicitly.
+
 For each `BetRecord`:
 
 - `bet_id`, `bet_win_amount`, `basic_win_amount`, `free_win_amount`, `round_count`, `rounds`, `bet_final_state` must be present

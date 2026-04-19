@@ -1,4 +1,16 @@
-from validation.core.types import CanonicalResult, MetricsBundle
+from dataclasses import dataclass
+
+from validation.canonical.minimal_canonical import CanonicalResult
+
+
+@dataclass
+class MetricsBundle:
+    bet_count: int = 0
+    round_count: int = 0
+    roll_count: int = 0
+    total_bet_win_amount: float = 0.0
+    total_round_win_amount: float = 0.0
+    total_roll_win_amount: float = 0.0
 
 
 def compute_metrics_impl(result: CanonicalResult) -> MetricsBundle:
