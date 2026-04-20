@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from validation.canonical.minimal_canonical import CanonicalResult
-from validation.metrics.minimal_metrics import MetricsBundle
-from validation.validation.minimal_validation import ValidationReport
+from validation.canonical.schema import CanonicalResult
+from validation.metrics.metrics import MetricsBundle
+from validation.validation.validation import ValidationReport
 
 
 @dataclass

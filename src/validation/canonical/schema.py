@@ -29,6 +29,9 @@ class RollRecord:
     roll_type: str = ""
     strip_set_id: int = 0
     multiplier_profile_id: int = 0
+    column_strip_ids: list[int] = field(default_factory=list)
+    refill_start_indices: list[int] = field(default_factory=list)
+    refill_end_indices: list[int] = field(default_factory=list)
     roll_filled_state: list[list[Cell]] = field(default_factory=list)
     roll_final_state: list[list[Cell | None]] = field(default_factory=list)
     roll_multi_symbols_num: int = 0

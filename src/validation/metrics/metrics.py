@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from validation.canonical.minimal_canonical import CanonicalResult
+from validation.canonical.schema import CanonicalResult
 
 
 @dataclass

@@ -1,11 +1,3 @@
-SIMULATION_CONFIG = {
-    "seed": 42,
-    "rounds": [
-        {"round_id": 0, "round_type": "basic", "roll_wins": [0.0, 1.0]},
-        {"round_id": 1, "round_type": "basic", "roll_wins": [0.0, 2.0]},
-    ]
-}
-
 # Simulation configuration
 SIMULATION_MODE = {
     1 :{

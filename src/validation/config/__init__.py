@@ -1,3 +1,3 @@
-from validation.config.minimal_config import MinimalRoundConfig, MinimalSimulationConfig
+from validation.config.simulation_config import SimulationConfig
 
-__all__ = ["MinimalRoundConfig", "MinimalSimulationConfig"]
+__all__ = ["SimulationConfig"]
