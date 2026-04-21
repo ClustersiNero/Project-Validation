@@ -1,13 +1,10 @@
 import pytest
 
 from validation.api import run
-import validation.engine.engine as engine_module
-from validation.engine.engine import (
-    CellExecution,
-    apply_gravity,
-    evaluate_regular_wins,
-    refill_board,
-)
+import validation.engine.bet as bet_module
+from validation.engine.board import apply_gravity, refill_board
+from validation.engine.roll import evaluate_regular_wins
+from validation.engine.types import CellExecution
 from validation.engine.rng import RNG
 
 
@@ -354,7 +351,7 @@ def test_free_round_limit_prevents_infinite_award_queue(monkeypatch):
             },
         },
     }
-    monkeypatch.setattr(engine_module, "MAX_FREE_ROUNDS_PER_BET", 2)
+    monkeypatch.setattr(bet_module, "MAX_FREE_ROUNDS_PER_BET", 2)
 
     with pytest.raises(RuntimeError) as exc_info:
         run(

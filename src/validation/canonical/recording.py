@@ -7,7 +7,7 @@ from validation.canonical.schema import (
     SimulationMetadata,
 )
 from validation.config.simulation_config import SimulationConfig
-from validation.engine.engine import (
+from validation.engine.types import (
     BetExecution,
     CellExecution,
     RollExecution,

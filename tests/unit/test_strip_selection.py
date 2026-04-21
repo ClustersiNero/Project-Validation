@@ -2,7 +2,7 @@ import pytest
 
 from configs.game import olympus_mini
 from validation.api import run
-from validation.engine.engine import choose_round_strip_set_id, choose_weighted_id
+from validation.engine.selection import choose_round_strip_set_id, choose_weighted_id
 from validation.engine.rng import RNG
 
 
