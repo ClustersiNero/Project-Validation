@@ -84,14 +84,23 @@ def test_pipeline_smoke():
             assert bet.bet_final_state == bet.rounds[-1].round_final_state
 
     # metrics counts
-    assert result.metrics_bundle.bet_count == 1
-    assert result.metrics_bundle.round_count == 1
-    assert result.metrics_bundle.roll_count == 1
+    assert result.metrics_bundle.meta.total_bets == 1
+    assert result.metrics_bundle.round_metrics.core.round_count == 1
+    assert result.metrics_bundle.roll_metrics.core.roll_count == 1
 
     # metrics totals consistent with canonical
-    assert result.metrics_bundle.total_bet_win_amount == bet.bet_win_amount
-    assert result.metrics_bundle.total_round_win_amount == sum(rnd.round_win_amount for rnd in bet.rounds)
-    assert result.metrics_bundle.total_roll_win_amount == sum(
+    assert result.metrics_bundle.meta.total_bet_win_amount == bet.bet_win_amount
+    assert result.metrics_bundle.round_metrics.core.total_round_win_amount == sum(
+        rnd.round_win_amount for rnd in bet.rounds
+    )
+    assert result.metrics_bundle.roll_metrics.core.total_roll_win_amount == sum(
+        r.roll_win_amount for rnd in bet.rounds for r in rnd.rolls
+    )
+    assert result.metrics_bundle.bet_metrics.core.avg_bet_win_amount.observed == bet.bet_win_amount
+    assert result.metrics_bundle.round_metrics.core.avg_round_win_amount.observed == sum(
+        rnd.round_win_amount for rnd in bet.rounds
+    )
+    assert result.metrics_bundle.roll_metrics.core.avg_roll_win_amount.observed == sum(
         r.roll_win_amount for rnd in bet.rounds for r in rnd.rolls
     )
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from validation.canonical.schema import CanonicalResult
-from validation.metrics.metrics import MetricsBundle
+from validation.metrics.types import MetricsBundle
 from validation.validation.validation import ValidationReport
 
 

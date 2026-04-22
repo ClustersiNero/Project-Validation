@@ -1,5 +1,5 @@
 from validation.canonical.schema import CanonicalResult
-from validation.metrics.metrics import MetricsBundle
+from validation.metrics.types import MetricsBundle
 from validation.validation.validation import ValidationReport
 from validation.validation.validation import validate_canonical_impl, validate_metrics_impl
 

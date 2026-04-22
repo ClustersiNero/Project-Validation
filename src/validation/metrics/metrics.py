@@ -1,30 +1,40 @@
-from dataclasses import dataclass
-
 from validation.canonical.schema import CanonicalResult
+from validation.metrics.bet import compute_bet_metrics
+from validation.metrics.roll import compute_roll_metrics
+from validation.metrics.round import compute_round_metrics
+from validation.metrics.types import MetricsBundle, MetricsMeta
 
-
-@dataclass
-class MetricsBundle:
-    bet_count: int = 0
-    round_count: int = 0
-    roll_count: int = 0
-    total_bet_win_amount: float = 0.0
-    total_round_win_amount: float = 0.0
-    total_roll_win_amount: float = 0.0
+# Metrics are descriptive projections of CanonicalResult.
+# They do not judge, validate, or reconstruct hidden engine state.
 
 
 def compute_metrics_impl(result: CanonicalResult) -> MetricsBundle:
-    bet_count = len(result.bets)
-    round_count = sum(len(b.rounds) for b in result.bets)
-    roll_count = sum(len(r.rolls) for b in result.bets for r in b.rounds)
-    total_bet_win_amount = sum(b.bet_win_amount for b in result.bets)
-    total_round_win_amount = sum(r.round_win_amount for b in result.bets for r in b.rounds)
-    total_roll_win_amount = sum(ro.roll_win_amount for b in result.bets for r in b.rounds for ro in r.rolls)
+    metadata = result.simulation_metadata
+    bets = result.bets
+    rounds = [rnd for bet in bets for rnd in bet.rounds]
+    rolls = [roll for rnd in rounds for roll in rnd.rolls]
+
+    bet_amount = metadata.bet_amount
+    total_bet_amount = len(bets) * bet_amount
+    total_bet_win_amount = sum(bet.bet_win_amount for bet in bets)
+
     return MetricsBundle(
-        bet_count=bet_count,
-        round_count=round_count,
-        roll_count=roll_count,
-        total_bet_win_amount=total_bet_win_amount,
-        total_round_win_amount=total_round_win_amount,
-        total_roll_win_amount=total_roll_win_amount,
+        meta=MetricsMeta(
+            simulation_id=metadata.simulation_id,
+            config_id=metadata.config_id,
+            config_version=metadata.config_version,
+            engine_version=metadata.engine_version,
+            schema_version=metadata.schema_version,
+            mode=metadata.mode,
+            seed=metadata.seed,
+            bet_amount=metadata.bet_amount,
+            bet_level=metadata.bet_level,
+            total_bets=len(bets),
+            timestamp=metadata.timestamp,
+            total_bet_amount=total_bet_amount,
+            total_bet_win_amount=total_bet_win_amount,
+        ),
+        bet_metrics=compute_bet_metrics(bets, bet_amount, total_bet_amount),
+        round_metrics=compute_round_metrics(rounds),
+        roll_metrics=compute_roll_metrics(rolls),
     )
