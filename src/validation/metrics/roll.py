@@ -1,4 +1,4 @@
-from validation.metrics.statistics import ratio_or_none, statistical_metric
+from validation.metrics.statistics import statistical_metric
 from validation.metrics.types import (
     RollCoreMetrics,
     RollMetrics,
@@ -15,19 +15,19 @@ def compute_roll_metrics(rolls: list) -> RollMetrics:
     return RollMetrics(
         core=RollCoreMetrics(
             roll_count=len(rolls),
+            initial_roll_count=len(initial_rolls),
+            cascade_roll_count=len(cascade_rolls),
             total_roll_win_amount=total_roll_win_amount,
             avg_roll_win_amount=statistical_metric([roll.roll_win_amount for roll in rolls]),
             roll_hit_frequency=statistical_metric(
                 [1.0 if roll.roll_win_amount > 0 else 0.0 for roll in rolls]
             ),
             roll_type_distribution=RollTypeDistribution(
-                initial=ratio_or_none(
-                    sum(1 for roll in rolls if roll.roll_type == "initial"),
-                    len(rolls),
+                initial=statistical_metric(
+                    [1.0 if roll.roll_type == "initial" else 0.0 for roll in rolls]
                 ),
-                cascade=ratio_or_none(
-                    sum(1 for roll in rolls if roll.roll_type == "cascade"),
-                    len(rolls),
+                cascade=statistical_metric(
+                    [1.0 if roll.roll_type == "cascade" else 0.0 for roll in rolls]
                 ),
             ),
         ),

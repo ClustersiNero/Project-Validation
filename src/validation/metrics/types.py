@@ -31,13 +31,21 @@ class BetCoreMetrics:
     avg_bet_win_amount: StatisticalMetric = field(default_factory=StatisticalMetric)
     bet_hit_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)
     free_containing_bet_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)
-    basic_rtp: float | None = None
-    free_rtp: float | None = None
+    basic_rtp: StatisticalMetric = field(default_factory=StatisticalMetric)
+    free_rtp: StatisticalMetric = field(default_factory=StatisticalMetric)
+
+
+@dataclass
+class BetStructureMetrics:
+    avg_rounds_per_bet: StatisticalMetric = field(default_factory=StatisticalMetric)
+    avg_free_rounds_per_bet: StatisticalMetric = field(default_factory=StatisticalMetric)
+    avg_rolls_per_bet: StatisticalMetric = field(default_factory=StatisticalMetric)
 
 
 @dataclass
 class BetMetrics:
     core: BetCoreMetrics = field(default_factory=BetCoreMetrics)
+    structure: BetStructureMetrics = field(default_factory=BetStructureMetrics)
 
 
 @dataclass
@@ -47,7 +55,8 @@ class RoundCoreMetrics:
     free_round_count: int = 0
     total_round_win_amount: float = 0.0
     avg_round_win_amount: StatisticalMetric = field(default_factory=StatisticalMetric)
-    free_award_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)
+    round_hit_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)
+    free_round_award_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)
     avg_free_rounds_awarded: StatisticalMetric = field(default_factory=StatisticalMetric)
 
 
@@ -68,13 +77,15 @@ class RoundMetrics:
 
 @dataclass
 class RollTypeDistribution:
-    initial: float | None = None
-    cascade: float | None = None
+    initial: StatisticalMetric = field(default_factory=StatisticalMetric)
+    cascade: StatisticalMetric = field(default_factory=StatisticalMetric)
 
 
 @dataclass
 class RollCoreMetrics:
     roll_count: int = 0
+    initial_roll_count: int = 0
+    cascade_roll_count: int = 0
     total_roll_win_amount: float = 0.0
     avg_roll_win_amount: StatisticalMetric = field(default_factory=StatisticalMetric)
     roll_hit_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)

@@ -14,7 +14,10 @@ def compute_round_metrics(rounds: list) -> RoundMetrics:
             free_round_count=len(free_rounds),
             total_round_win_amount=total_round_win_amount,
             avg_round_win_amount=statistical_metric([rnd.round_win_amount for rnd in rounds]),
-            free_award_frequency=statistical_metric(
+            round_hit_frequency=statistical_metric(
+                [1.0 if rnd.round_win_amount > 0 else 0.0 for rnd in rounds]
+            ),
+            free_round_award_frequency=statistical_metric(
                 [1.0 if rnd.award_free_rounds > 0 else 0.0 for rnd in rounds]
             ),
             avg_free_rounds_awarded=statistical_metric(

@@ -1,21 +1,23 @@
 from configs.game import olympus_mini
 from validation.api import run
-from validation.core.types import PipelineResult
+from validation.core.types import MetricRule, PipelineResult, ValidationRules
+
+
+def _pipeline_config() -> dict:
+    return {
+        "seed": 42,
+        "mode_id": 1,
+        "bet_count": 1,
+        "simulation_mode": olympus_mini.SIMULATION_MODE,
+        "paytable": olympus_mini.PAYTABLE,
+        "multiplier_data": olympus_mini.MULTIPLIER_DATA,
+        "strip_sets": olympus_mini.STRIP_SETS,
+        "implementation_config": olympus_mini.IMPLEMENTATION_CONFIG,
+    }
 
 
 def test_pipeline_smoke():
-    result = run(
-        {
-            "seed": 42,
-            "mode_id": 1,
-            "bet_count": 1,
-            "simulation_mode": olympus_mini.SIMULATION_MODE,
-            "paytable": olympus_mini.PAYTABLE,
-            "multiplier_data": olympus_mini.MULTIPLIER_DATA,
-            "strip_sets": olympus_mini.STRIP_SETS,
-            "implementation_config": olympus_mini.IMPLEMENTATION_CONFIG,
-        }
-    )
+    result = run(_pipeline_config())
 
     assert isinstance(result, PipelineResult)
 
@@ -109,3 +111,24 @@ def test_pipeline_smoke():
     assert result.canonical_validation.issues == []
     assert result.metrics_validation.is_valid is True
     assert result.metrics_validation.issues == []
+    assert result.statistical_validation is None
+
+
+def test_pipeline_can_run_statistical_validation_when_rules_are_supplied():
+    rules = ValidationRules(
+        metrics={
+            "MetricsBundle.bet_metrics.core.empirical_rtp": MetricRule(
+                expected_range=(0.0, 1000.0),
+            )
+        }
+    )
+
+    result = run(_pipeline_config(), validation_rules=rules)
+
+    assert result.statistical_validation is not None
+    assert result.statistical_validation.is_valid is True
+    assert len(result.statistical_validation.statistical_checks) == 1
+    check = result.statistical_validation.statistical_checks[0]
+    assert check.metric_path == "MetricsBundle.bet_metrics.core.empirical_rtp"
+    assert check.check_type == "range"
+    assert check.verdict == "pass"

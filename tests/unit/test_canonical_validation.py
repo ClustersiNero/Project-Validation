@@ -5,7 +5,7 @@ from validation.canonical.schema import (
     RoundRecord,
     SimulationMetadata,
 )
-from validation.validation.validation import validate_canonical_impl
+from validation.core.validation import validate_canonical
 
 
 def _valid_result() -> CanonicalResult:
@@ -64,7 +64,7 @@ def _valid_result() -> CanonicalResult:
 
 
 def test_valid_canonical_result_passes():
-    report = validate_canonical_impl(_valid_result())
+    report = validate_canonical(_valid_result())
 
     assert report.is_valid is True
     assert report.issues == []
@@ -74,7 +74,7 @@ def test_total_bets_mismatch_fails():
     result = _valid_result()
     result.simulation_metadata.total_bets = 2
 
-    report = validate_canonical_impl(result)
+    report = validate_canonical(result)
 
     assert report.is_valid is False
     assert "simulation_metadata.total_bets does not match len(bets)" in report.issues
@@ -84,7 +84,7 @@ def test_basic_win_aggregation_mismatch_fails():
     result = _valid_result()
     result.bets[0].basic_win_amount = 0.0
 
-    report = validate_canonical_impl(result)
+    report = validate_canonical(result)
 
     assert report.is_valid is False
     assert "bet 0 basic_win_amount does not equal sum(basic round_win_amount)" in report.issues
@@ -94,7 +94,7 @@ def test_roll_type_sequence_mismatch_fails():
     result = _valid_result()
     result.bets[0].rounds[0].rolls[1].roll_type = "initial"
 
-    report = validate_canonical_impl(result)
+    report = validate_canonical(result)
 
     assert report.is_valid is False
     assert "bet 0 round 0 roll 1 roll_type must be 'cascade'" in report.issues
@@ -107,7 +107,7 @@ def test_round_multiplier_without_increment_fails():
     result.bets[0].bet_win_amount = 6.0
     result.bets[0].basic_win_amount = 6.0
 
-    report = validate_canonical_impl(result)
+    report = validate_canonical(result)
 
     assert report.is_valid is False
     assert "bet 0 round 0 round_total_multiplier must be 1 when round_multiplier_increment is 0" in report.issues
@@ -117,7 +117,7 @@ def test_roll_refill_index_length_mismatch_fails():
     result = _valid_result()
     result.bets[0].rounds[0].rolls[0].refill_start_indices = [0, 0, 0]
 
-    report = validate_canonical_impl(result)
+    report = validate_canonical(result)
 
     assert report.is_valid is False
     assert "bet 0 round 0 roll 0 refill_start_indices must have length 6" in report.issues
@@ -127,7 +127,7 @@ def test_cascade_refill_start_must_match_previous_refill_end():
     result = _valid_result()
     result.bets[0].rounds[0].rolls[1].refill_start_indices = [9, 9, 9, 9, 9, 9]
 
-    report = validate_canonical_impl(result)
+    report = validate_canonical(result)
 
     assert report.is_valid is False
     assert (
@@ -141,7 +141,7 @@ def test_basic_scatter_award_mismatch_fails():
     result.bets[0].rounds[0].round_scatter_increment = 4
     result.bets[0].rounds[0].award_free_rounds = 0
 
-    report = validate_canonical_impl(result)
+    report = validate_canonical(result)
 
     assert report.is_valid is False
     assert (
@@ -156,7 +156,7 @@ def test_free_scatter_award_mismatch_fails():
     result.bets[0].rounds[0].round_scatter_increment = 3
     result.bets[0].rounds[0].award_free_rounds = 0
 
-    report = validate_canonical_impl(result)
+    report = validate_canonical(result)
 
     assert report.is_valid is False
     assert (
@@ -170,7 +170,7 @@ def test_no_scatter_award_mismatch_fails():
     result.bets[0].rounds[0].round_scatter_increment = 3
     result.bets[0].rounds[0].award_free_rounds = 15
 
-    report = validate_canonical_impl(result)
+    report = validate_canonical(result)
 
     assert report.is_valid is False
     assert (
@@ -225,7 +225,7 @@ def test_free_round_carried_multiplier_continuity_mismatch_fails():
     result.bets[0].bet_win_amount = 14.0
     result.bets[0].free_win_amount = 11.0
 
-    report = validate_canonical_impl(result)
+    report = validate_canonical(result)
 
     assert report.is_valid is False
     assert (

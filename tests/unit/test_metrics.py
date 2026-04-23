@@ -69,13 +69,19 @@ def test_metrics_are_computed_from_canonical_only():
     assert metrics.bet_metrics.core.avg_bet_win_amount.observed == 2.0
     assert metrics.bet_metrics.core.bet_hit_frequency.observed == 0.5
     assert metrics.bet_metrics.core.free_containing_bet_frequency.observed == 0.0
-    assert metrics.bet_metrics.core.basic_rtp == 0.75
-    assert metrics.bet_metrics.core.free_rtp == 0.25
+    assert metrics.bet_metrics.core.basic_rtp.observed == 0.75
+    assert metrics.bet_metrics.core.basic_rtp.sample_size == 2
+    assert metrics.bet_metrics.core.free_rtp.observed == 0.25
+    assert metrics.bet_metrics.core.free_rtp.sample_size == 2
+    assert metrics.bet_metrics.structure.avg_rounds_per_bet.observed == 1.0
+    assert metrics.bet_metrics.structure.avg_free_rounds_per_bet.observed == 0.0
+    assert metrics.bet_metrics.structure.avg_rolls_per_bet.observed == 1.0
     assert metrics.round_metrics.core.round_count == 2
     assert metrics.round_metrics.core.basic_round_count == 2
     assert metrics.round_metrics.core.free_round_count == 0
     assert metrics.round_metrics.core.avg_round_win_amount.observed == 2.0
-    assert metrics.round_metrics.core.free_award_frequency.observed == 0.0
+    assert metrics.round_metrics.core.round_hit_frequency.observed == 0.5
+    assert metrics.round_metrics.core.free_round_award_frequency.observed == 0.0
     assert metrics.round_metrics.core.avg_free_rounds_awarded.observed == 0.0
     assert metrics.round_metrics.basic.round_count == 2
     assert metrics.round_metrics.basic.avg_round_win_amount.observed == 2.0
@@ -86,10 +92,14 @@ def test_metrics_are_computed_from_canonical_only():
     assert metrics.round_metrics.free.round_hit_frequency.observed is None
     assert metrics.round_metrics.free.avg_free_rounds_awarded.observed is None
     assert metrics.roll_metrics.core.roll_count == 2
+    assert metrics.roll_metrics.core.initial_roll_count == 2
+    assert metrics.roll_metrics.core.cascade_roll_count == 0
     assert metrics.roll_metrics.core.avg_roll_win_amount.observed == 2.0
     assert metrics.roll_metrics.core.roll_hit_frequency.observed == 0.5
-    assert metrics.roll_metrics.core.roll_type_distribution.initial == 1.0
-    assert metrics.roll_metrics.core.roll_type_distribution.cascade == 0.0
+    assert metrics.roll_metrics.core.roll_type_distribution.initial.observed == 1.0
+    assert metrics.roll_metrics.core.roll_type_distribution.initial.sample_size == 2
+    assert metrics.roll_metrics.core.roll_type_distribution.cascade.observed == 0.0
+    assert metrics.roll_metrics.core.roll_type_distribution.cascade.sample_size == 2
     assert metrics.roll_metrics.initial.roll_count == 2
     assert metrics.roll_metrics.initial.avg_roll_win_amount.observed == 2.0
     assert metrics.roll_metrics.initial.roll_hit_frequency.observed == 0.5
@@ -165,7 +175,8 @@ def test_metrics_describe_free_rounds_and_cascade_rolls():
     assert metrics.round_metrics.core.round_count == 3
     assert metrics.round_metrics.core.basic_round_count == 2
     assert metrics.round_metrics.core.free_round_count == 1
-    assert metrics.round_metrics.core.free_award_frequency.observed == 1 / 3
+    assert metrics.round_metrics.core.round_hit_frequency.observed == 2 / 3
+    assert metrics.round_metrics.core.free_round_award_frequency.observed == 1 / 3
     assert metrics.round_metrics.core.avg_free_rounds_awarded.observed == 5.0
     assert metrics.round_metrics.basic.round_count == 2
     assert metrics.round_metrics.basic.avg_round_win_amount.observed == 1.0
@@ -177,10 +188,17 @@ def test_metrics_describe_free_rounds_and_cascade_rolls():
     assert metrics.round_metrics.free.avg_free_rounds_awarded.observed == 0.0
     assert metrics.bet_metrics.core.free_containing_bet_frequency.observed == 0.5
     assert metrics.bet_metrics.core.free_containing_bet_frequency.sample_size == 2
+    assert metrics.bet_metrics.structure.avg_rounds_per_bet.observed == 1.5
+    assert metrics.bet_metrics.structure.avg_free_rounds_per_bet.observed == 0.5
+    assert metrics.bet_metrics.structure.avg_rolls_per_bet.observed == 2.0
     assert metrics.roll_metrics.core.roll_count == 4
+    assert metrics.roll_metrics.core.initial_roll_count == 3
+    assert metrics.roll_metrics.core.cascade_roll_count == 1
     assert metrics.roll_metrics.core.roll_hit_frequency.observed == 0.75
-    assert metrics.roll_metrics.core.roll_type_distribution.initial == 0.75
-    assert metrics.roll_metrics.core.roll_type_distribution.cascade == 0.25
+    assert metrics.roll_metrics.core.roll_type_distribution.initial.observed == 0.75
+    assert metrics.roll_metrics.core.roll_type_distribution.initial.sample_size == 4
+    assert metrics.roll_metrics.core.roll_type_distribution.cascade.observed == 0.25
+    assert metrics.roll_metrics.core.roll_type_distribution.cascade.sample_size == 4
     assert metrics.roll_metrics.initial.roll_count == 3
     assert metrics.roll_metrics.initial.avg_roll_win_amount.observed == 4 / 3
     assert metrics.roll_metrics.initial.roll_hit_frequency.observed == 2 / 3

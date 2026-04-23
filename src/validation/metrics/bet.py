@@ -1,11 +1,8 @@
-from validation.metrics.statistics import ratio_or_none, statistical_metric
-from validation.metrics.types import BetCoreMetrics, BetMetrics
+from validation.metrics.statistics import statistical_metric
+from validation.metrics.types import BetCoreMetrics, BetMetrics, BetStructureMetrics
 
 
 def compute_bet_metrics(bets: list, bet_amount: float, total_bet_amount: float) -> BetMetrics:
-    total_basic_win_amount = sum(bet.basic_win_amount for bet in bets)
-    total_free_win_amount = sum(bet.free_win_amount for bet in bets)
-
     return BetMetrics(
         core=BetCoreMetrics(
             empirical_rtp=statistical_metric(
@@ -24,7 +21,29 @@ def compute_bet_metrics(bets: list, bet_amount: float, total_bet_amount: float) 
                     for bet in bets
                 ]
             ),
-            basic_rtp=ratio_or_none(total_basic_win_amount, total_bet_amount),
-            free_rtp=ratio_or_none(total_free_win_amount, total_bet_amount),
+            basic_rtp=statistical_metric(
+                [bet.basic_win_amount / bet_amount for bet in bets]
+                if bet_amount > 0
+                else None,
+                sample_size=len(bets),
+            ),
+            free_rtp=statistical_metric(
+                [bet.free_win_amount / bet_amount for bet in bets]
+                if bet_amount > 0
+                else None,
+                sample_size=len(bets),
+            ),
+        ),
+        structure=BetStructureMetrics(
+            avg_rounds_per_bet=statistical_metric([float(bet.round_count) for bet in bets]),
+            avg_free_rounds_per_bet=statistical_metric(
+                [
+                    float(sum(1 for rnd in bet.rounds if rnd.round_type == "free"))
+                    for bet in bets
+                ]
+            ),
+            avg_rolls_per_bet=statistical_metric(
+                [float(sum(rnd.roll_count for rnd in bet.rounds)) for bet in bets]
+            ),
         ),
     )
