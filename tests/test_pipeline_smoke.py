@@ -36,25 +36,26 @@ def test_pipeline_smoke():
     assert metadata.timestamp == "1970-01-01T00:00:00Z"
 
     assert len(result.canonical_result.bets) == 1
-    assert len(result.canonical_result.bets[0].rounds) == 1
-    assert len(result.canonical_result.bets[0].rounds[0].rolls) == 1
+    assert len(result.canonical_result.bets[0].rounds) >= 1
 
     # round ids
     assert result.canonical_result.bets[0].rounds[0].round_id == 0
 
     # canonical internal consistency
     bet = result.canonical_result.bets[0]
-    assert bet.round_count == 1
+    assert bet.round_count == len(bet.rounds)
     assert bet.bet_win_amount == sum(rnd.round_win_amount for rnd in bet.rounds)
     assert bet.basic_win_amount == sum(rnd.round_win_amount for rnd in bet.rounds if rnd.round_type == "basic")
     assert bet.free_win_amount == sum(rnd.round_win_amount for rnd in bet.rounds if rnd.round_type == "free")
     assert bet.bet_win_amount == bet.basic_win_amount + bet.free_win_amount
     for rnd in bet.rounds:
+        assert rnd.roll_count == len(rnd.rolls)
+        assert len(rnd.rolls) >= 1
         assert rnd.base_symbol_win_amount == sum(r.roll_win_amount for r in rnd.rolls)
-        assert rnd.carried_multiplier == 0.0
-        assert rnd.round_total_multiplier == 1.0
-        assert rnd.award_free_rounds == 0
-        assert rnd.scatter_win_amount == 0.0
+        if rnd.round_type == "basic":
+            assert rnd.carried_multiplier == 0.0
+        if rnd.round_multiplier_increment == 0:
+            assert rnd.round_total_multiplier == 1.0
         assert rnd.round_win_amount == sum(r.roll_win_amount for r in rnd.rolls)
         assert rnd.round_win_amount == rnd.base_symbol_win_amount * rnd.round_total_multiplier + rnd.scatter_win_amount
         assert rnd.rolls[0].roll_type == "initial"
@@ -62,6 +63,8 @@ def test_pipeline_smoke():
         for roll in rnd.rolls:
             assert roll.strip_set_id == rnd.rolls[0].strip_set_id
             assert roll.multiplier_profile_id in olympus_mini.MULTIPLIER_DATA["weight"]
+            assert len(roll.roll_pre_fill_state) == 5
+            assert all(len(row) == 6 for row in roll.roll_pre_fill_state)
             assert len(roll.roll_filled_state) == 5
             assert all(len(row) == 6 for row in roll.roll_filled_state)
             for row in roll.roll_filled_state:
@@ -71,9 +74,11 @@ def test_pipeline_smoke():
                         assert cell.multiplier_value is not None
                     else:
                         assert cell.multiplier_value is None
-            assert len(roll.roll_final_state) == 5
-            assert all(len(row) == 6 for row in roll.roll_final_state)
-            for row in roll.roll_final_state:
+            assert len(roll.roll_cleared_state) == 5
+            assert all(len(row) == 6 for row in roll.roll_cleared_state)
+            assert len(roll.roll_gravity_state) == 5
+            assert all(len(row) == 6 for row in roll.roll_gravity_state)
+            for row in roll.roll_gravity_state:
                 for cell in row:
                     if cell is None:
                         continue
@@ -82,8 +87,14 @@ def test_pipeline_smoke():
                         assert cell.multiplier_value is not None
                     else:
                         assert cell.multiplier_value is None
-            assert rnd.round_final_state == rnd.rolls[-1].roll_final_state
+            if roll.roll_id == 0:
+                assert all(cell is None for row in roll.roll_pre_fill_state for cell in row)
+            assert rnd.round_final_state == rnd.rolls[-1].roll_gravity_state
             assert bet.bet_final_state == bet.rounds[-1].round_final_state
+        for previous_roll, current_roll in zip(rnd.rolls, rnd.rolls[1:]):
+            assert current_roll.roll_pre_fill_state == previous_roll.roll_gravity_state
+            assert current_roll.roll_filled_state != current_roll.roll_pre_fill_state
+            assert current_roll.fill_start_indices == previous_roll.next_fill_start_indices
 
     # metrics counts
     assert result.metrics_bundle.meta.total_bets == 1

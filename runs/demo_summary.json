@@ -1,0 +1,57 @@
+{
+  "run": {
+    "config_module": "configs.game.olympus_mini",
+    "config_id": "simulation_config",
+    "mode": "normal",
+    "seed": 42,
+    "total_bets": 5
+  },
+  "validation": {
+    "canonical": "PASS",
+    "metrics": "PASS",
+    "statistical": "SKIPPED"
+  },
+  "metrics": {
+    "empirical_rtp": {
+      "observed": 0.61,
+      "standard_deviation": 0.8763560920082658,
+      "sample_size": 5
+    },
+    "basic_rtp": {
+      "observed": 0.61,
+      "standard_deviation": 0.8763560920082658,
+      "sample_size": 5
+    },
+    "free_rtp": {
+      "observed": 0.0,
+      "standard_deviation": 0.0,
+      "sample_size": 5
+    },
+    "bet_hit_frequency": {
+      "observed": 0.4,
+      "standard_deviation": 0.5477225575051662,
+      "sample_size": 5
+    },
+    "round_hit_frequency": {
+      "observed": 0.4,
+      "standard_deviation": 0.5477225575051662,
+      "sample_size": 5
+    },
+    "roll_hit_frequency": {
+      "observed": 0.625,
+      "standard_deviation": 0.5175491695067657,
+      "sample_size": 8
+    },
+    "initial_roll_share": {
+      "observed": 0.625,
+      "standard_deviation": 0.5175491695067657,
+      "sample_size": 8
+    },
+    "cascade_roll_share": {
+      "observed": 0.375,
+      "standard_deviation": 0.5175491695067657,
+      "sample_size": 8
+    }
+  },
+  "statistical": null
+}

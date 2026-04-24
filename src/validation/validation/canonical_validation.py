@@ -4,6 +4,7 @@ from validation.validation.types import ValidationReport
 
 _FLOAT_TOLERANCE = 1e-9
 _BOARD_COLUMN_COUNT = 6
+_BOARD_ROW_COUNT = 5
 
 
 def _almost_equal(left: float, right: float) -> bool:
@@ -64,14 +65,36 @@ def validate_canonical_impl(result: CanonicalResult) -> ValidationReport:
                     issues.append(f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} roll_win_amount must be non-negative")
                 if len(roll.column_strip_ids) != _BOARD_COLUMN_COUNT:
                     issues.append(f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} column_strip_ids must have length 6")
-                if len(roll.refill_start_indices) != _BOARD_COLUMN_COUNT:
-                    issues.append(f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} refill_start_indices must have length 6")
-                if len(roll.refill_end_indices) != _BOARD_COLUMN_COUNT:
-                    issues.append(f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} refill_end_indices must have length 6")
+                if len(roll.fill_start_indices) != _BOARD_COLUMN_COUNT:
+                    issues.append(f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} fill_start_indices must have length 6")
+                if len(roll.fill_end_indices) != _BOARD_COLUMN_COUNT:
+                    issues.append(f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} fill_end_indices must have length 6")
+                _validate_board_shape(
+                    roll.roll_pre_fill_state,
+                    f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} roll_pre_fill_state",
+                    issues,
+                )
+                _validate_board_shape(
+                    roll.roll_filled_state,
+                    f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} roll_filled_state",
+                    issues,
+                )
+                _validate_board_shape(
+                    roll.roll_cleared_state,
+                    f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} roll_cleared_state",
+                    issues,
+                )
+                _validate_board_shape(
+                    roll.roll_gravity_state,
+                    f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} roll_gravity_state",
+                    issues,
+                )
+                if roll_index == 0 and not _is_empty_board(roll.roll_pre_fill_state):
+                    issues.append(f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} initial roll_pre_fill_state must be an empty board")
                 if roll_index > 0:
                     previous_roll = rnd.rolls[roll_index - 1]
-                    if roll.refill_start_indices != previous_roll.refill_end_indices:
-                        issues.append(f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} refill_start_indices must equal previous roll refill_end_indices")
+                    if roll.roll_pre_fill_state != previous_roll.roll_gravity_state:
+                        issues.append(f"bet {bet.bet_id} round {rnd.round_id} roll {roll.roll_id} roll_pre_fill_state must equal previous roll roll_gravity_state")
             if not _almost_equal(rnd.base_symbol_win_amount, sum(roll.roll_win_amount for roll in rnd.rolls)):
                 issues.append(f"bet {bet.bet_id} round {rnd.round_id} base_symbol_win_amount does not equal sum(roll_win_amount)")
             expected_round_win = rnd.base_symbol_win_amount * rnd.round_total_multiplier + rnd.scatter_win_amount
@@ -98,3 +121,15 @@ def validate_canonical_impl(result: CanonicalResult) -> ValidationReport:
         if not _almost_equal(bet.bet_win_amount, bet.basic_win_amount + bet.free_win_amount):
             issues.append(f"bet {bet.bet_id} bet_win_amount does not equal basic_win_amount plus free_win_amount")
     return ValidationReport(is_valid=len(issues) == 0, issues=issues)
+
+
+def _validate_board_shape(board, path: str, issues: list[str]) -> None:
+    if len(board) != _BOARD_ROW_COUNT:
+        issues.append(f"{path} must have length 5")
+        return
+    if any(len(row) != _BOARD_COLUMN_COUNT for row in board):
+        issues.append(f"{path} rows must have length 6")
+
+
+def _is_empty_board(board) -> bool:
+    return all(cell is None for row in board for cell in row)

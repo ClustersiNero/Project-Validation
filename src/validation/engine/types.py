@@ -15,10 +15,13 @@ class RollExecution:
     strip_set_id: int
     multiplier_profile_id: int
     column_strip_ids: list[int] = field(default_factory=list)
-    refill_start_indices: list[int] = field(default_factory=list)
-    refill_end_indices: list[int] = field(default_factory=list)
+    fill_start_indices: list[int] = field(default_factory=list)
+    fill_end_indices: list[int] = field(default_factory=list)
+    next_fill_start_indices: list[int] = field(default_factory=list)
+    pre_fill_state: list[list[CellExecution | None]] = field(default_factory=list)
     filled_state: list[list[CellExecution]] = field(default_factory=list)
-    final_state: list[list[CellExecution | None]] = field(default_factory=list)
+    cleared_state: list[list[CellExecution | None]] = field(default_factory=list)
+    gravity_state: list[list[CellExecution | None]] = field(default_factory=list)
     multi_symbols_num: int = 0
     multi_symbols_carry: list[int] = field(default_factory=list)
     scatter_symbols_num: int = 0
@@ -63,6 +66,8 @@ class RegularWinEvaluation:
 @dataclass
 class StripSample:
     symbols: list[int]
+    start_index: int
+    end_index: int
     next_index: int
 
 
@@ -70,12 +75,16 @@ class StripSample:
 class BoardGeneration:
     board: list[list[CellExecution]]
     column_strip_ids: list[int]
+    fill_start_indices: list[int]
+    fill_end_indices: list[int]
     next_strip_indices: list[int]
 
 
 @dataclass
 class RefillResult:
     board: list[list[CellExecution]]
+    fill_start_indices: list[int]
+    fill_end_indices: list[int]
     next_strip_indices: list[int]
 
 
@@ -90,6 +99,5 @@ class RoundSpecialSummary:
 @dataclass
 class RollSettlement:
     win_amount: float
-    final_state: list[list[CellExecution]]
-    refill_start_indices: list[int]
-    refill_end_indices: list[int]
+    cleared_state: list[list[CellExecution | None]]
+    gravity_state: list[list[CellExecution | None]]

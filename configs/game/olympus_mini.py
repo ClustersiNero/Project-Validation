@@ -179,7 +179,7 @@ STRIP_SETS  = {
 IMPLEMENTATION_CONFIG = {
     1:{
         'basic':{
-            'round_strip_set_weights': [90, 10, 0],             # index 0/1/2 → strip_set_id 1/2/3
+            'round_strip_set_weights': [0, 10, 0],             # index 0/1/2 → strip_set_id 1/2/3
             'round_multiplier_profile_weights': [1, 1, 2, 3],   # index 0/1/2/3 → multiplier_profile_id 1/2/3/4
         },
         'free':{

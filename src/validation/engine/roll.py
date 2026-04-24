@@ -4,6 +4,7 @@ from validation.engine.board import (
     clear_winning_positions,
     collect_board_special_symbols,
     generate_initial_board,
+    make_empty_board,
     refill_board,
 )
 from validation.engine.rng import RNG
@@ -51,12 +52,6 @@ def run_initial_roll(
     settlement = settle_regular_wins(
         board=filled_state,
         paytable=config.paytable,
-        strip_set=config.strip_sets[strip_set_id],
-        column_strip_ids=board_generation.column_strip_ids,
-        next_strip_indices=board_generation.next_strip_indices,
-        multiplier_data=config.multiplier_data,
-        multiplier_profile_id=multiplier_profile_id,
-        rng=rng,
         bet_level=1.0,
     )
 
@@ -67,10 +62,13 @@ def run_initial_roll(
         strip_set_id=strip_set_id,
         multiplier_profile_id=multiplier_profile_id,
         column_strip_ids=board_generation.column_strip_ids,
-        refill_start_indices=settlement.refill_start_indices,
-        refill_end_indices=settlement.refill_end_indices,
+        fill_start_indices=board_generation.fill_start_indices,
+        fill_end_indices=board_generation.fill_end_indices,
+        next_fill_start_indices=board_generation.next_strip_indices,
+        pre_fill_state=make_empty_board(len(board_generation.column_strip_ids)),
         filled_state=filled_state,
-        final_state=settlement.final_state,
+        cleared_state=settlement.cleared_state,
+        gravity_state=settlement.gravity_state,
         multi_symbols_num=multi_symbols_num,
         multi_symbols_carry=multi_symbols_carry,
         scatter_symbols_num=scatter_symbols_num,
@@ -85,9 +83,20 @@ def run_cascade_roll(
     strip_set_id: int,
     multiplier_profile_id: int,
     column_strip_ids: list[int],
-    next_strip_indices: list[int],
-    filled_state: list[list[CellExecution]],
+    pre_fill_state: list[list[CellExecution | None]],
+    fill_start_indices: list[int],
 ) -> RollExecution:
+    refill_result = refill_board(
+        board=pre_fill_state,
+        strip_set=config.strip_sets[strip_set_id],
+        column_strip_ids=column_strip_ids,
+        next_strip_indices=fill_start_indices,
+        paytable=config.paytable,
+        multiplier_data=config.multiplier_data,
+        multiplier_profile_id=multiplier_profile_id,
+        rng=rng,
+    )
+    filled_state = refill_result.board
     multi_symbols_num, scatter_symbols_num, multi_symbols_carry = collect_board_special_symbols(
         filled_state,
         config.paytable,
@@ -95,12 +104,6 @@ def run_cascade_roll(
     settlement = settle_regular_wins(
         board=filled_state,
         paytable=config.paytable,
-        strip_set=config.strip_sets[strip_set_id],
-        column_strip_ids=column_strip_ids,
-        next_strip_indices=next_strip_indices,
-        multiplier_data=config.multiplier_data,
-        multiplier_profile_id=multiplier_profile_id,
-        rng=rng,
         bet_level=1.0,
     )
 
@@ -111,10 +114,13 @@ def run_cascade_roll(
         strip_set_id=strip_set_id,
         multiplier_profile_id=multiplier_profile_id,
         column_strip_ids=column_strip_ids,
-        refill_start_indices=settlement.refill_start_indices,
-        refill_end_indices=settlement.refill_end_indices,
+        fill_start_indices=refill_result.fill_start_indices,
+        fill_end_indices=refill_result.fill_end_indices,
+        next_fill_start_indices=refill_result.next_strip_indices,
+        pre_fill_state=pre_fill_state,
         filled_state=filled_state,
-        final_state=settlement.final_state,
+        cleared_state=settlement.cleared_state,
+        gravity_state=settlement.gravity_state,
         multi_symbols_num=multi_symbols_num,
         multi_symbols_carry=multi_symbols_carry,
         scatter_symbols_num=scatter_symbols_num,
@@ -124,33 +130,15 @@ def run_cascade_roll(
 def settle_regular_wins(
     board: list[list[CellExecution]],
     paytable: dict,
-    strip_set: dict[int, list[int]],
-    column_strip_ids: list[int],
-    next_strip_indices: list[int],
-    multiplier_data: dict,
-    multiplier_profile_id: int,
-    rng: RNG,
     bet_level: float,
 ) -> RollSettlement:
     evaluation = evaluate_regular_wins(board, paytable, bet_level)
     cleared_board = clear_winning_positions(board, evaluation.winning_positions)
     settled_board = apply_gravity(cleared_board)
-    refill_start_indices = list(next_strip_indices)
-    refill_result = refill_board(
-        board=settled_board,
-        strip_set=strip_set,
-        column_strip_ids=column_strip_ids,
-        next_strip_indices=refill_start_indices,
-        paytable=paytable,
-        multiplier_data=multiplier_data,
-        multiplier_profile_id=multiplier_profile_id,
-        rng=rng,
-    )
     return RollSettlement(
         win_amount=evaluation.win_amount,
-        final_state=refill_result.board,
-        refill_start_indices=refill_start_indices,
-        refill_end_indices=refill_result.next_strip_indices,
+        cleared_state=cleared_board,
+        gravity_state=settled_board,
     )
 
 
@@ -186,7 +174,3 @@ def evaluate_regular_wins(
         win_amount=win_amount,
         winning_positions=winning_positions,
     )
-
-
-def has_regular_win(board: list[list[CellExecution]], paytable: dict) -> bool:
-    return bool(evaluate_regular_wins(board, paytable, bet_level=1.0).winning_positions)

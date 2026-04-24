@@ -8,24 +8,37 @@ from validation.canonical.schema import (
 from validation.core.validation import validate_canonical
 
 
+def _empty_board() -> list[list[None]]:
+    return [[None] * 6 for _ in range(5)]
+
+
 def _valid_result() -> CanonicalResult:
     column_strip_ids = [1, 2, 3, 4, 5, 6]
+    empty_board = _empty_board()
     rolls = [
         RollRecord(
             roll_id=0,
             roll_win_amount=1.0,
             roll_type="initial",
             column_strip_ids=column_strip_ids,
-            refill_start_indices=[0, 0, 0, 0, 0, 0],
-            refill_end_indices=[1, 1, 1, 1, 1, 1],
+            fill_start_indices=[0, 0, 0, 0, 0, 0],
+            fill_end_indices=[1, 1, 1, 1, 1, 1],
+            roll_pre_fill_state=empty_board,
+            roll_filled_state=empty_board,
+            roll_cleared_state=empty_board,
+            roll_gravity_state=empty_board,
         ),
         RollRecord(
             roll_id=1,
             roll_win_amount=2.0,
             roll_type="cascade",
             column_strip_ids=column_strip_ids,
-            refill_start_indices=[1, 1, 1, 1, 1, 1],
-            refill_end_indices=[2, 2, 2, 2, 2, 2],
+            fill_start_indices=[1, 1, 1, 1, 1, 1],
+            fill_end_indices=[2, 2, 2, 2, 2, 2],
+            roll_pre_fill_state=empty_board,
+            roll_filled_state=empty_board,
+            roll_cleared_state=empty_board,
+            roll_gravity_state=empty_board,
         ),
     ]
     round_ = RoundRecord(
@@ -113,25 +126,39 @@ def test_round_multiplier_without_increment_fails():
     assert "bet 0 round 0 round_total_multiplier must be 1 when round_multiplier_increment is 0" in report.issues
 
 
-def test_roll_refill_index_length_mismatch_fails():
+def test_roll_fill_index_length_mismatch_fails():
     result = _valid_result()
-    result.bets[0].rounds[0].rolls[0].refill_start_indices = [0, 0, 0]
+    result.bets[0].rounds[0].rolls[0].fill_start_indices = [0, 0, 0]
 
     report = validate_canonical(result)
 
     assert report.is_valid is False
-    assert "bet 0 round 0 roll 0 refill_start_indices must have length 6" in report.issues
+    assert "bet 0 round 0 roll 0 fill_start_indices must have length 6" in report.issues
 
 
-def test_cascade_refill_start_must_match_previous_refill_end():
+def test_initial_roll_pre_fill_must_be_empty_board():
     result = _valid_result()
-    result.bets[0].rounds[0].rolls[1].refill_start_indices = [9, 9, 9, 9, 9, 9]
+    result.bets[0].rounds[0].rolls[0].roll_pre_fill_state[0][0] = object()
 
     report = validate_canonical(result)
 
     assert report.is_valid is False
     assert (
-        "bet 0 round 0 roll 1 refill_start_indices must equal previous roll refill_end_indices"
+        "bet 0 round 0 roll 0 initial roll_pre_fill_state must be an empty board"
+        in report.issues
+    )
+
+
+def test_cascade_pre_fill_must_match_previous_gravity_state():
+    result = _valid_result()
+    result.bets[0].rounds[0].rolls[1].roll_pre_fill_state = _empty_board()
+    result.bets[0].rounds[0].rolls[0].roll_gravity_state[0][0] = object()
+
+    report = validate_canonical(result)
+
+    assert report.is_valid is False
+    assert (
+        "bet 0 round 0 roll 1 roll_pre_fill_state must equal previous roll roll_gravity_state"
         in report.issues
     )
 
@@ -181,6 +208,7 @@ def test_no_scatter_award_mismatch_fails():
 
 def test_free_round_carried_multiplier_continuity_mismatch_fails():
     result = _valid_result()
+    empty_board = _empty_board()
     first_free_round = RoundRecord(
         round_id=1,
         round_type="free",
@@ -196,8 +224,12 @@ def test_free_round_carried_multiplier_continuity_mismatch_fails():
                 roll_win_amount=1.0,
                 roll_type="initial",
                 column_strip_ids=[1, 2, 3, 4, 5, 6],
-                refill_start_indices=[0, 0, 0, 0, 0, 0],
-                refill_end_indices=[1, 1, 1, 1, 1, 1],
+                fill_start_indices=[0, 0, 0, 0, 0, 0],
+                fill_end_indices=[1, 1, 1, 1, 1, 1],
+                roll_pre_fill_state=empty_board,
+                roll_filled_state=empty_board,
+                roll_cleared_state=empty_board,
+                roll_gravity_state=empty_board,
             ),
         ],
     )
@@ -215,8 +247,12 @@ def test_free_round_carried_multiplier_continuity_mismatch_fails():
                 roll_win_amount=1.0,
                 roll_type="initial",
                 column_strip_ids=[1, 2, 3, 4, 5, 6],
-                refill_start_indices=[0, 0, 0, 0, 0, 0],
-                refill_end_indices=[1, 1, 1, 1, 1, 1],
+                fill_start_indices=[0, 0, 0, 0, 0, 0],
+                fill_end_indices=[1, 1, 1, 1, 1, 1],
+                roll_pre_fill_state=empty_board,
+                roll_filled_state=empty_board,
+                roll_cleared_state=empty_board,
+                roll_gravity_state=empty_board,
             ),
         ],
     )

@@ -1,7 +1,7 @@
 from validation.config.simulation_config import SimulationConfig
 from validation.engine.board import collect_board_special_symbols
 from validation.engine.rng import RNG
-from validation.engine.roll import has_regular_win, run_cascade_roll, run_initial_roll
+from validation.engine.roll import run_cascade_roll, run_initial_roll
 from validation.engine.types import CellExecution, RoundExecution, RoundSpecialSummary
 
 MAX_CASCADE_ROLLS = 100
@@ -47,8 +47,9 @@ def run_round(
     rolls = []
     roll = run_initial_roll(config=config, rng=rng, round_type=round_type)
     rolls.append(roll)
+    next_fill_start_indices = roll.next_fill_start_indices
 
-    while has_regular_win(roll.final_state, config.paytable):
+    while roll.roll_win_amount > 0.0:
         if len(rolls) > MAX_CASCADE_ROLLS:
             raise RuntimeError("cascade roll limit exceeded")
         roll = run_cascade_roll(
@@ -59,13 +60,14 @@ def run_round(
             strip_set_id=roll.strip_set_id,
             multiplier_profile_id=roll.multiplier_profile_id,
             column_strip_ids=roll.column_strip_ids,
-            next_strip_indices=roll.refill_end_indices,
-            filled_state=roll.final_state,
+            pre_fill_state=roll.gravity_state,
+            fill_start_indices=next_fill_start_indices,
         )
         rolls.append(roll)
+        next_fill_start_indices = roll.next_fill_start_indices
 
     base_symbol_win_amount = sum(roll.roll_win_amount for roll in rolls)
-    final_state = rolls[-1].final_state
+    final_state = rolls[-1].gravity_state
     special_summary = summarize_round_specials(
         final_state=final_state,
         paytable=config.paytable,

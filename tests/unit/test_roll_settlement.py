@@ -91,7 +91,8 @@ def test_refill_uses_same_column_strip_from_next_index():
         [9],
         [7],
     ]
-    assert refill_result.next_strip_indices == [1]
+    assert refill_result.fill_start_indices == [1]
+    assert refill_result.fill_end_indices == [0]
 
 
 def test_pipeline_clears_regular_wins_and_records_canonical_final_state():
@@ -137,29 +138,36 @@ def test_pipeline_clears_regular_wins_and_records_canonical_final_state():
     roll = rnd.rolls[0]
     final_symbol_ids = {
         cell.symbol_id
-        for row in roll.roll_final_state
+        for row in roll.roll_gravity_state
         for cell in row
         if cell is not None
     }
 
-    assert rnd.roll_count == 2
-    assert [recorded_roll.roll_type for recorded_roll in rnd.rolls] == ["initial", "cascade"]
-    assert [recorded_roll.roll_id for recorded_roll in rnd.rolls] == [0, 1]
-    assert [recorded_roll.roll_win_amount for recorded_roll in rnd.rolls] == [3.0, 2.0]
+    assert rnd.roll_count == 3
+    assert [recorded_roll.roll_type for recorded_roll in rnd.rolls] == ["initial", "cascade", "cascade"]
+    assert [recorded_roll.roll_id for recorded_roll in rnd.rolls] == [0, 1, 2]
+    assert [recorded_roll.roll_win_amount for recorded_roll in rnd.rolls] == [3.0, 2.0, 0.0]
     assert rnd.base_symbol_win_amount == 5.0
     assert rnd.round_win_amount == 5.0
-    assert len(roll.roll_final_state) == 5
-    assert all(len(row) == 6 for row in roll.roll_final_state)
-    assert all(cell is not None for row in roll.roll_final_state for cell in row)
-    assert 2 in final_symbol_ids
-    assert rnd.rolls[1].roll_filled_state == roll.roll_final_state
-    assert rnd.rolls[0].column_strip_ids == rnd.rolls[1].column_strip_ids
-    assert rnd.rolls[0].refill_end_indices == rnd.rolls[1].refill_start_indices
+    assert len(roll.roll_gravity_state) == 5
+    assert all(len(row) == 6 for row in roll.roll_gravity_state)
+    assert final_symbol_ids == {3}
+    assert rnd.rolls[0].roll_pre_fill_state == [[None] * 6 for _ in range(5)]
+    assert rnd.rolls[1].roll_pre_fill_state == rnd.rolls[0].roll_gravity_state
+    assert rnd.rolls[2].roll_pre_fill_state == rnd.rolls[1].roll_gravity_state
+    assert all(recorded_roll.roll_filled_state != recorded_roll.roll_pre_fill_state for recorded_roll in rnd.rolls[1:])
+    assert rnd.rolls[0].column_strip_ids == rnd.rolls[1].column_strip_ids == rnd.rolls[2].column_strip_ids
+    assert len(roll.roll_pre_fill_state) == 5
+    assert all(len(row) == 6 for row in roll.roll_pre_fill_state)
+    assert len(roll.roll_cleared_state) == 5
+    assert all(len(row) == 6 for row in roll.roll_cleared_state)
+    assert len(roll.roll_gravity_state) == 5
+    assert all(len(row) == 6 for row in roll.roll_gravity_state)
     assert all(len(recorded_roll.column_strip_ids) == 6 for recorded_roll in rnd.rolls)
-    assert all(len(recorded_roll.refill_start_indices) == 6 for recorded_roll in rnd.rolls)
-    assert all(len(recorded_roll.refill_end_indices) == 6 for recorded_roll in rnd.rolls)
-    assert rnd.round_final_state == rnd.rolls[-1].roll_final_state
-    assert bet.bet_final_state == rnd.rolls[-1].roll_final_state
+    assert all(len(recorded_roll.fill_start_indices) == 6 for recorded_roll in rnd.rolls)
+    assert all(len(recorded_roll.fill_end_indices) == 6 for recorded_roll in rnd.rolls)
+    assert rnd.round_final_state == rnd.rolls[-1].roll_gravity_state
+    assert bet.bet_final_state == rnd.rolls[-1].roll_gravity_state
 
 
 def test_round_special_summary_uses_final_board_for_multiplier_and_scatter():

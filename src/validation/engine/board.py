@@ -5,6 +5,10 @@ from validation.engine.types import BoardGeneration, CellExecution, RefillResult
 BOARD_ROW_COUNT = 5
 
 
+def make_empty_board(column_count: int) -> list[list[CellExecution | None]]:
+    return [[None for _ in range(column_count)] for _ in range(BOARD_ROW_COUNT)]
+
+
 def clear_winning_positions(
     board: list[list[CellExecution]],
     winning_positions: set[tuple[int, int]],
@@ -53,6 +57,8 @@ def refill_board(
     rng: RNG,
 ) -> RefillResult:
     refilled_board = [list(row) for row in board]
+    fill_start_indices = list(next_strip_indices)
+    fill_end_indices = list(next_strip_indices)
     updated_next_indices = list(next_strip_indices)
 
     for col_index, strip_id in enumerate(column_strip_ids):
@@ -73,11 +79,14 @@ def refill_board(
                 multiplier_profile_id,
                 rng,
             )
+            fill_end_indices[col_index] = next_index
             next_index = (next_index + 1) % len(strip)
         updated_next_indices[col_index] = next_index
 
     return RefillResult(
         board=refilled_board,
+        fill_start_indices=fill_start_indices,
+        fill_end_indices=fill_end_indices,
         next_strip_indices=updated_next_indices,
     )
 
@@ -91,6 +100,8 @@ def generate_initial_board(
 ) -> BoardGeneration:
     strip_ids = list(strip_set.keys())
     shuffled_strip_ids = shuffle_strip_ids(strip_ids, rng)
+    fill_start_indices = []
+    fill_end_indices = []
     next_strip_indices = []
     board: list[list[CellExecution | None]] = [
         [None for _ in shuffled_strip_ids] for _ in range(BOARD_ROW_COUNT)
@@ -98,6 +109,8 @@ def generate_initial_board(
 
     for col_index, strip_id in enumerate(shuffled_strip_ids):
         sample = sample_strip_column(strip_set[strip_id], BOARD_ROW_COUNT, rng)
+        fill_start_indices.append(sample.start_index)
+        fill_end_indices.append(sample.end_index)
         next_strip_indices.append(sample.next_index)
         for row_index, symbol_id in enumerate(sample.symbols):
             board[row_index][col_index] = make_cell(
@@ -111,6 +124,8 @@ def generate_initial_board(
     return BoardGeneration(
         board=board,
         column_strip_ids=shuffled_strip_ids,
+        fill_start_indices=fill_start_indices,
+        fill_end_indices=fill_end_indices,
         next_strip_indices=next_strip_indices,
     )
 
@@ -127,6 +142,8 @@ def sample_strip_column(strip: list[int], row_count: int, rng: RNG) -> StripSamp
     start_index = rng.next_int(0, len(strip) - 1)
     return StripSample(
         symbols=[strip[(start_index + offset) % len(strip)] for offset in range(row_count)],
+        start_index=start_index,
+        end_index=(start_index + row_count - 1) % len(strip),
         next_index=(start_index + row_count) % len(strip),
     )
 
