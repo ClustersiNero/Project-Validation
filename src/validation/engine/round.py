@@ -45,14 +45,17 @@ def run_round(
     carried_multiplier: float,
 ) -> RoundExecution:
     rolls = []
-    roll = run_initial_roll(config=config, rng=rng, round_type=round_type)
+    roll, next_fill_start_indices = run_initial_roll(
+        config=config,
+        rng=rng,
+        round_type=round_type,
+    )
     rolls.append(roll)
-    next_fill_start_indices = roll.next_fill_start_indices
 
     while roll.roll_win_amount > 0.0:
         if len(rolls) > MAX_CASCADE_ROLLS:
             raise RuntimeError("cascade roll limit exceeded")
-        roll = run_cascade_roll(
+        roll, next_fill_start_indices = run_cascade_roll(
             config=config,
             rng=rng,
             roll_id=len(rolls),
@@ -64,7 +67,6 @@ def run_round(
             fill_start_indices=next_fill_start_indices,
         )
         rolls.append(roll)
-        next_fill_start_indices = roll.next_fill_start_indices
 
     base_symbol_win_amount = sum(roll.roll_win_amount for roll in rolls)
     final_state = rolls[-1].gravity_state

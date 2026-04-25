@@ -1,4 +1,5 @@
 import json
+import csv
 
 from validation.cli import main
 
@@ -24,6 +25,7 @@ def test_cli_prints_summary_without_statistical_rules(capsys):
     assert "Canonical Validation: PASS" in captured.out
     assert "Metrics Validation: PASS" in captured.out
     assert "Statistical Validation: SKIPPED" in captured.out
+    assert "free_containing_bet_frequency:" in captured.out
 
 
 def test_cli_can_run_with_default_rules(capsys):
@@ -77,6 +79,7 @@ def test_cli_can_write_json_summary(tmp_path, capsys):
     assert exported["validation"]["metrics"] == "PASS"
     assert exported["validation"]["statistical"] == "SKIPPED"
     assert "empirical_rtp" in exported["metrics"]
+    assert "free_containing_bet_frequency" in exported["metrics"]
     assert exported["statistical"] is None
 
 
@@ -115,3 +118,42 @@ def test_cli_can_write_markdown_trace(tmp_path, capsys):
     assert "fill_start_indices" in exported
     assert "fill_end_indices" in exported
     assert "| Row | C1 | C2 | C3 | C4 | C5 | C6 |" in exported
+
+
+def test_cli_can_write_tuning_csv_exports(tmp_path, capsys):
+    prefix = tmp_path / "demo_tuning"
+    bet_path = tmp_path / "demo_tuning_bets.csv"
+    round_path = tmp_path / "demo_tuning_rounds.csv"
+
+    exit_code = main(
+        [
+            "--config-module",
+            "configs.game.olympus_mini",
+            "--seed",
+            "42",
+            "--mode-id",
+            "1",
+            "--bet-count",
+            "3",
+            "--output-tuning-prefix",
+            str(prefix),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    with bet_path.open("r", encoding="utf-8", newline="") as handle:
+        bet_rows = list(csv.DictReader(handle))
+    with round_path.open("r", encoding="utf-8", newline="") as handle:
+        round_rows = list(csv.DictReader(handle))
+
+    assert exit_code == 0
+    assert "Run Summary" in captured.out
+    assert len(bet_rows) == 3
+    assert len(round_rows) >= 3
+    assert bet_rows[0]["config_module"] == "configs.game.olympus_mini"
+    assert bet_rows[0]["mode"] == "normal"
+    assert "bet_win_amount" in bet_rows[0]
+    assert "free_containing_bet" in bet_rows[0]
+    assert round_rows[0]["config_module"] == "configs.game.olympus_mini"
+    assert "round_type" in round_rows[0]
+    assert "round_total_multiplier" in round_rows[0]

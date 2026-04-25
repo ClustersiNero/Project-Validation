@@ -8,6 +8,7 @@ from typing import Sequence
 from validation.api.run_pipeline import run
 from validation.core.types import PipelineResult, ValidationRules
 from validation.export.trace_export import export_trace_markdown
+from validation.export.tuning_export import export_tuning_csvs
 from validation.metrics.types import StatisticalMetric
 
 
@@ -36,6 +37,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output-trace",
         help="Optional path for writing a human-readable Markdown trace export.",
+    )
+    parser.add_argument(
+        "--output-tuning-prefix",
+        help="Optional output prefix for writing tuning CSV exports: <prefix>_bets.csv and <prefix>_rounds.csv.",
     )
     return parser
 
@@ -68,6 +73,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.output_trace,
             config_module_path=args.config_module,
         )
+    if args.output_tuning_prefix:
+        export_tuning_csvs(
+            result.canonical_result,
+            args.output_tuning_prefix,
+            config_module_path=args.config_module,
+        )
     summary = _build_summary_data(result, args.config_module)
     if args.output_json:
         _write_summary_json(summary, args.output_json)
@@ -95,6 +106,7 @@ def _format_summary(summary: dict) -> str:
         f"- basic_rtp: {_format_metric_summary(metrics['basic_rtp'])}",
         f"- free_rtp: {_format_metric_summary(metrics['free_rtp'])}",
         f"- bet_hit_frequency: {_format_metric_summary(metrics['bet_hit_frequency'])}",
+        f"- free_containing_bet_frequency: {_format_metric_summary(metrics['free_containing_bet_frequency'])}",
         f"- round_hit_frequency: {_format_metric_summary(metrics['round_hit_frequency'])}",
         f"- roll_hit_frequency: {_format_metric_summary(metrics['roll_hit_frequency'])}",
         f"- initial_roll_share: {_format_metric_summary(metrics['initial_roll_share'])}",
@@ -149,6 +161,9 @@ def _build_summary_data(result: PipelineResult, config_module_path: str) -> dict
             "basic_rtp": _metric_to_dict(result.metrics_bundle.bet_metrics.core.basic_rtp),
             "free_rtp": _metric_to_dict(result.metrics_bundle.bet_metrics.core.free_rtp),
             "bet_hit_frequency": _metric_to_dict(result.metrics_bundle.bet_metrics.core.bet_hit_frequency),
+            "free_containing_bet_frequency": _metric_to_dict(
+                result.metrics_bundle.bet_metrics.core.free_containing_bet_frequency
+            ),
             "round_hit_frequency": _metric_to_dict(result.metrics_bundle.round_metrics.core.round_hit_frequency),
             "roll_hit_frequency": _metric_to_dict(result.metrics_bundle.roll_metrics.core.roll_hit_frequency),
             "initial_roll_share": _metric_to_dict(
@@ -196,11 +211,6 @@ def _statistical_status(report) -> str:
     if report.is_valid:
         return f"PASS ({len(report.statistical_checks)} checks)"
     return f"FAIL ({len(report.statistical_checks)} checks)"
-
-
-def _format_metric(metric: StatisticalMetric) -> str:
-    observed = _format_number(metric.observed)
-    return f"{observed} (n={metric.sample_size})"
 
 
 def _format_metric_summary(metric: dict) -> str:

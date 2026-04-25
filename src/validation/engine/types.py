@@ -17,7 +17,6 @@ class RollExecution:
     column_strip_ids: list[int] = field(default_factory=list)
     fill_start_indices: list[int] = field(default_factory=list)
     fill_end_indices: list[int] = field(default_factory=list)
-    next_fill_start_indices: list[int] = field(default_factory=list)
     pre_fill_state: list[list[CellExecution | None]] = field(default_factory=list)
     filled_state: list[list[CellExecution]] = field(default_factory=list)
     cleared_state: list[list[CellExecution | None]] = field(default_factory=list)

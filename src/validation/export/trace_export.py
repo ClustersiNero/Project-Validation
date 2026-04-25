@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from validation.canonical.schema import CanonicalResult, Cell
+from validation.export.helpers import final_free_carry, win_x
 
 
 def export_trace_markdown(
@@ -55,11 +56,11 @@ def build_trace_markdown(
                 "",
                 f"## Bet {bet.bet_id}",
                 f"- bet_win_amount: `{bet.bet_win_amount:.6f}`",
-                f"- bet_win_x: `{_win_x(bet.bet_win_amount, metadata.bet_amount):.6f}`",
+                f"- bet_win_x: `{win_x(bet.bet_win_amount, metadata.bet_amount):.6f}`",
                 f"- basic_win_amount: `{bet.basic_win_amount:.6f}`",
                 f"- free_win_amount: `{bet.free_win_amount:.6f}`",
                 f"- round_count: `{bet.round_count}`",
-                f"- final_free_carried_multiplier: `{_final_free_carry(bet):.6f}`",
+                f"- final_free_carried_multiplier: `{final_free_carry(bet):.6f}`",
             ]
         )
         for rnd in bet.rounds:
@@ -68,7 +69,7 @@ def build_trace_markdown(
                     "",
                     f"### Round {rnd.round_id} ({rnd.round_type})",
                     f"- round_win_amount: `{rnd.round_win_amount:.6f}`",
-                    f"- round_win_x: `{_win_x(rnd.round_win_amount, metadata.bet_amount):.6f}`",
+                    f"- round_win_x: `{win_x(rnd.round_win_amount, metadata.bet_amount):.6f}`",
                     f"- roll_count: `{rnd.roll_count}`",
                     f"- base_symbol_win_amount: `{rnd.base_symbol_win_amount:.6f}`",
                     f"- scatter_win_amount: `{rnd.scatter_win_amount:.6f}`",
@@ -95,7 +96,7 @@ def build_trace_markdown(
                         "",
                         f"#### Roll {roll.roll_id} ({roll.roll_type})",
                         f"- roll_win_amount: `{roll.roll_win_amount:.6f}`",
-                        f"- roll_win_x: `{_win_x(roll.roll_win_amount, metadata.bet_amount):.6f}`",
+                        f"- roll_win_x: `{win_x(roll.roll_win_amount, metadata.bet_amount):.6f}`",
                         f"- strip_set_id: `{roll.strip_set_id}`",
                         f"- multiplier_profile_id: `{roll.multiplier_profile_id}`",
                         f"- column_strip_ids: `{roll.column_strip_ids}`",
@@ -150,17 +151,3 @@ def _symbol_code(symbol_id: int, paytable: dict) -> str:
     if parts:
         return parts[0][:2].upper()
     return f"S{symbol_id}"
-
-
-def _win_x(win_amount: float, bet_amount: float) -> float:
-    if bet_amount <= 0:
-        return 0.0
-    return win_amount / bet_amount
-
-
-def _final_free_carry(bet) -> float:
-    carry = 0.0
-    for rnd in bet.rounds:
-        if rnd.round_type == "free" and rnd.base_symbol_win_amount > 0.0:
-            carry = rnd.carried_multiplier + rnd.round_multiplier_increment
-    return carry

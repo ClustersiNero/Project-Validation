@@ -24,7 +24,7 @@ def run_initial_roll(
     config: SimulationConfig,
     rng: RNG,
     round_type: str,
-) -> RollExecution:
+) -> tuple[RollExecution, list[int]]:
     strip_set_id = choose_round_strip_set_id(
         config.implementation_config,
         config.mode_id,
@@ -55,7 +55,7 @@ def run_initial_roll(
         bet_level=1.0,
     )
 
-    return RollExecution(
+    roll = RollExecution(
         roll_id=0,
         roll_type="initial",
         roll_win_amount=settlement.win_amount,
@@ -64,7 +64,6 @@ def run_initial_roll(
         column_strip_ids=board_generation.column_strip_ids,
         fill_start_indices=board_generation.fill_start_indices,
         fill_end_indices=board_generation.fill_end_indices,
-        next_fill_start_indices=board_generation.next_strip_indices,
         pre_fill_state=make_empty_board(len(board_generation.column_strip_ids)),
         filled_state=filled_state,
         cleared_state=settlement.cleared_state,
@@ -73,6 +72,7 @@ def run_initial_roll(
         multi_symbols_carry=multi_symbols_carry,
         scatter_symbols_num=scatter_symbols_num,
     )
+    return roll, board_generation.next_strip_indices
 
 
 def run_cascade_roll(
@@ -85,7 +85,7 @@ def run_cascade_roll(
     column_strip_ids: list[int],
     pre_fill_state: list[list[CellExecution | None]],
     fill_start_indices: list[int],
-) -> RollExecution:
+) -> tuple[RollExecution, list[int]]:
     refill_result = refill_board(
         board=pre_fill_state,
         strip_set=config.strip_sets[strip_set_id],
@@ -107,7 +107,7 @@ def run_cascade_roll(
         bet_level=1.0,
     )
 
-    return RollExecution(
+    roll = RollExecution(
         roll_id=roll_id,
         roll_type="cascade",
         roll_win_amount=settlement.win_amount,
@@ -116,7 +116,6 @@ def run_cascade_roll(
         column_strip_ids=column_strip_ids,
         fill_start_indices=refill_result.fill_start_indices,
         fill_end_indices=refill_result.fill_end_indices,
-        next_fill_start_indices=refill_result.next_strip_indices,
         pre_fill_state=pre_fill_state,
         filled_state=filled_state,
         cleared_state=settlement.cleared_state,
@@ -125,6 +124,7 @@ def run_cascade_roll(
         multi_symbols_carry=multi_symbols_carry,
         scatter_symbols_num=scatter_symbols_num,
     )
+    return roll, refill_result.next_strip_indices
 
 
 def settle_regular_wins(

@@ -140,6 +140,7 @@ def shuffle_strip_ids(strip_ids: list[int], rng: RNG) -> list[int]:
 
 def sample_strip_column(strip: list[int], row_count: int, rng: RNG) -> StripSample:
     start_index = rng.next_int(0, len(strip) - 1)
+
     return StripSample(
         symbols=[strip[(start_index + offset) % len(strip)] for offset in range(row_count)],
         start_index=start_index,

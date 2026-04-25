@@ -94,7 +94,6 @@ def test_pipeline_smoke():
         for previous_roll, current_roll in zip(rnd.rolls, rnd.rolls[1:]):
             assert current_roll.roll_pre_fill_state == previous_roll.roll_gravity_state
             assert current_roll.roll_filled_state != current_roll.roll_pre_fill_state
-            assert current_roll.fill_start_indices == previous_roll.next_fill_start_indices
 
     # metrics counts
     assert result.metrics_bundle.meta.total_bets == 1
