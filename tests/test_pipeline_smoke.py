@@ -142,3 +142,48 @@ def test_pipeline_can_run_statistical_validation_when_rules_are_supplied():
     assert check.metric_path == "MetricsBundle.bet_metrics.core.empirical_rtp"
     assert check.check_type == "range"
     assert check.verdict == "pass"
+
+
+def test_pipeline_can_report_progress_by_completed_bet():
+    updates = []
+
+    result = run(
+        {
+            **_pipeline_config(),
+            "bet_count": 3,
+        },
+        progress_callback=lambda completed, total: updates.append((completed, total)),
+    )
+
+    assert isinstance(result, PipelineResult)
+    assert updates == [(1, 3), (2, 3), (3, 3)]
+
+
+def test_pipeline_can_report_post_processing_phases():
+    updates = []
+
+    result = run(
+        _pipeline_config(),
+        post_progress_callback=lambda completed, total, detail: updates.append(
+            (completed, total, detail)
+        ),
+    )
+
+    assert isinstance(result, PipelineResult)
+    assert updates == [
+        (0, 4, "recording canonical"),
+        (1, 4, "validating canonical"),
+        (2, 4, "computing metrics"),
+        (3, 4, "validating metrics"),
+        (4, 4, "complete"),
+    ]
+
+
+def test_pipeline_uses_bet_cost_multiplier_as_metadata_bet_amount():
+    config = _pipeline_config()
+    config["mode_id"] = 2
+
+    result = run(config)
+
+    assert result.canonical_result.simulation_metadata.mode == "buy_free"
+    assert result.canonical_result.simulation_metadata.bet_amount == 80.0

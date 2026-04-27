@@ -22,6 +22,9 @@ class Cell:
     multiplier_value: int | None = None
 
 
+BoardState = list[list[Cell | None]]
+
+
 @dataclass
 class RollRecord:
     roll_id: int = 0
@@ -32,10 +35,10 @@ class RollRecord:
     column_strip_ids: list[int] = field(default_factory=list)
     fill_start_indices: list[int] = field(default_factory=list)
     fill_end_indices: list[int] = field(default_factory=list)
-    roll_pre_fill_state: list[list[Cell | None]] = field(default_factory=list)
-    roll_filled_state: list[list[Cell | None]] = field(default_factory=list)
-    roll_cleared_state: list[list[Cell | None]] = field(default_factory=list)
-    roll_gravity_state: list[list[Cell | None]] = field(default_factory=list)
+    roll_pre_fill_state: BoardState = field(default_factory=list)
+    roll_filled_state: BoardState = field(default_factory=list)
+    roll_cleared_state: BoardState = field(default_factory=list)
+    roll_gravity_state: BoardState = field(default_factory=list)
     roll_multi_symbols_num: int = 0
     roll_multi_symbols_carry: list[int] = field(default_factory=list)
     roll_scatter_symbols_num: int = 0
@@ -54,7 +57,7 @@ class RoundRecord:
     award_free_rounds: int = 0
     scatter_win_amount: float = 0.0
     roll_count: int = 0
-    round_final_state: object | None = None
+    round_final_state: BoardState | None = None
     rolls: list[RollRecord] = field(default_factory=list)
 
 
@@ -65,7 +68,7 @@ class BetRecord:
     basic_win_amount: float = 0.0
     free_win_amount: float = 0.0
     round_count: int = 0
-    bet_final_state: object | None = None
+    bet_final_state: BoardState | None = None
     rounds: list[RoundRecord] = field(default_factory=list)
 
 

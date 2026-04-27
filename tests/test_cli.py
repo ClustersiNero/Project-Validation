@@ -25,7 +25,7 @@ def test_cli_prints_summary_without_statistical_rules(capsys):
     assert "Canonical Validation: PASS" in captured.out
     assert "Metrics Validation: PASS" in captured.out
     assert "Statistical Validation: SKIPPED" in captured.out
-    assert "free_containing_bet_frequency:" in captured.out
+    assert "free_trigger_frequency:" in captured.out
 
 
 def test_cli_can_run_with_default_rules(capsys):
@@ -79,7 +79,7 @@ def test_cli_can_write_json_summary(tmp_path, capsys):
     assert exported["validation"]["metrics"] == "PASS"
     assert exported["validation"]["statistical"] == "SKIPPED"
     assert "empirical_rtp" in exported["metrics"]
-    assert "free_containing_bet_frequency" in exported["metrics"]
+    assert "free_trigger_frequency" in exported["metrics"]
     assert exported["statistical"] is None
 
 
@@ -153,7 +153,7 @@ def test_cli_can_write_tuning_csv_exports(tmp_path, capsys):
     assert bet_rows[0]["config_module"] == "configs.game.olympus_mini"
     assert bet_rows[0]["mode"] == "normal"
     assert "bet_win_amount" in bet_rows[0]
-    assert "free_containing_bet" in bet_rows[0]
+    assert "free_triggered" in bet_rows[0]
     assert round_rows[0]["config_module"] == "configs.game.olympus_mini"
     assert "round_type" in round_rows[0]
     assert "round_total_multiplier" in round_rows[0]

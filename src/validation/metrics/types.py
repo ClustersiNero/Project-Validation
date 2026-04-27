@@ -27,6 +27,7 @@ class MetricsMeta:
 
 @dataclass
 class BetCoreMetrics:
+    # Validation-facing outcome metrics.
     empirical_rtp: StatisticalMetric = field(default_factory=StatisticalMetric)
     avg_bet_win_amount: StatisticalMetric = field(default_factory=StatisticalMetric)
     bet_hit_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)
@@ -37,6 +38,7 @@ class BetCoreMetrics:
 
 @dataclass
 class BetStructureMetrics:
+    # Structure / tuning-facing flow metrics.
     avg_rounds_per_bet: StatisticalMetric = field(default_factory=StatisticalMetric)
     avg_free_rounds_per_bet: StatisticalMetric = field(default_factory=StatisticalMetric)
     avg_rolls_per_bet: StatisticalMetric = field(default_factory=StatisticalMetric)
@@ -50,18 +52,22 @@ class BetMetrics:
 
 @dataclass
 class RoundCoreMetrics:
+    # Validation-facing round totals and hit rate.
     round_count: int = 0
     basic_round_count: int = 0
     free_round_count: int = 0
     total_round_win_amount: float = 0.0
     avg_round_win_amount: StatisticalMetric = field(default_factory=StatisticalMetric)
     round_hit_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)
+
+    # Structure / tuning-facing free-award flow metrics.
     free_round_award_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)
     avg_free_rounds_awarded: StatisticalMetric = field(default_factory=StatisticalMetric)
 
 
 @dataclass
 class RoundPartitionMetrics:
+    # Structure / tuning-facing partition metrics.
     round_count: int = 0
     avg_round_win_amount: StatisticalMetric = field(default_factory=StatisticalMetric)
     round_hit_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)
@@ -83,17 +89,21 @@ class RollTypeDistribution:
 
 @dataclass
 class RollCoreMetrics:
+    # Validation-facing roll totals and hit rate.
     roll_count: int = 0
     initial_roll_count: int = 0
     cascade_roll_count: int = 0
     total_roll_win_amount: float = 0.0
     avg_roll_win_amount: StatisticalMetric = field(default_factory=StatisticalMetric)
     roll_hit_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)
+
+    # Structure / tuning-facing roll progression mix.
     roll_type_distribution: RollTypeDistribution = field(default_factory=RollTypeDistribution)
 
 
 @dataclass
 class RollPartitionMetrics:
+    # Structure / tuning-facing partition metrics.
     roll_count: int = 0
     avg_roll_win_amount: StatisticalMetric = field(default_factory=StatisticalMetric)
     roll_hit_frequency: StatisticalMetric = field(default_factory=StatisticalMetric)

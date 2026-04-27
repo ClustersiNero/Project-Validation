@@ -48,7 +48,7 @@ def build_bet_rows(
                 "round_count": bet.round_count,
                 "basic_round_count": sum(1 for rnd in bet.rounds if rnd.round_type == "basic"),
                 "free_round_count": len(free_rounds),
-                "free_containing_bet": len(free_rounds) > 0
+                "free_triggered": len(free_rounds) > 0
                 or any(rnd.award_free_rounds > 0 for rnd in bet.rounds if rnd.round_type == "basic"),
                 "final_free_carried_multiplier": fmt_float(final_free_carry(bet)),
             }
@@ -79,8 +79,8 @@ def build_round_rows(
                     "base_symbol_win_amount": fmt_float(rnd.base_symbol_win_amount),
                     "scatter_win_amount": fmt_float(rnd.scatter_win_amount),
                     "roll_count": rnd.roll_count,
-                    "carried_multiplier": fmt_float(rnd.carried_multiplier),
-                    "round_multiplier_increment": fmt_float(rnd.round_multiplier_increment),
+                    "multiplier_carried_in": fmt_float(rnd.carried_multiplier),
+                    "multiplier_gained_this_round": fmt_float(rnd.round_multiplier_increment),
                     "round_total_multiplier": fmt_float(rnd.round_total_multiplier),
                     "round_scatter_increment": rnd.round_scatter_increment,
                     "award_free_rounds": rnd.award_free_rounds,
@@ -91,7 +91,10 @@ def build_round_rows(
     return rows
 
 
-def _write_csv(path: Path, rows: list[dict]) -> None:
+def _write_csv(
+    path: Path,
+    rows: list[dict],
+) -> None:
     if not rows:
         path.write_text("", encoding="utf-8", newline="")
         return
@@ -100,4 +103,5 @@ def _write_csv(path: Path, rows: list[dict]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(rows)
+        for row in rows:
+            writer.writerow(row)

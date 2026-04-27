@@ -68,13 +68,6 @@ def _future_feasible_after_pick(counts: Counter[int], picked: int) -> bool:
 
 
 def arrange_symbols_linear(symbol_counts: dict[int, int], rng: random.Random) -> list[int]:
-    """
-    生成线性 symbol 序列：相邻 symbol 不同。
-
-    选择策略：
-    - 只从合法候选中选：不能等于上一块 symbol，且不会让剩余池进入明显死局。
-    - 候选按剩余数量加权随机。
-    """
     counts = Counter(symbol_counts)
     result: list[int] = []
 
@@ -108,10 +101,6 @@ def arrange_symbols_linear(symbol_counts: dict[int, int], rng: random.Random) ->
 
 
 def make_sequence_circular(sequence: list[int], rng: random.Random) -> list[int]:
-    """
-    修正首尾相同问题。
-    只调整 symbol 块序列，不影响每个 symbol 的总数量。
-    """
     if len(sequence) <= 1 or sequence[0] != sequence[-1]:
         return sequence
 
@@ -144,11 +133,6 @@ def make_sequence_circular(sequence: list[int], rng: random.Random) -> list[int]
 
 
 def arrange_symbols_circular(symbol_counts: dict[int, int], rng: random.Random) -> list[int]:
-    """
-    生成环形 symbol 块序列：
-    - 相邻 symbol 不同
-    - 首尾 symbol 不同
-    """
     if not can_make_circular_no_adjacent(symbol_counts):
         raise ValueError(
             "Cannot build circular no-adjacent symbol sequence: "
@@ -160,12 +144,6 @@ def arrange_symbols_circular(symbol_counts: dict[int, int], rng: random.Random) 
 
 
 def build_run_length_pockets(config: StripBuildConfig) -> dict[int, list[int]]:
-    """
-    为每个 symbol 建立自己的 run_length 口袋。
-
-    run_length 数量 = symbol_weight * run_weight。
-    这等价于组合块池：count((symbol, run_length)) = symbol_weight * run_weight。
-    """
     pockets: dict[int, list[int]] = defaultdict(list)
 
     for symbol, symbol_weight in zip(config.symbols, config.symbol_weights):
@@ -180,10 +158,6 @@ def assign_run_lengths(
     config: StripBuildConfig,
     rng: random.Random,
 ) -> list[tuple[int, int]]:
-    """
-    给已排好的 symbol 序列分配 run_length。
-    每个 symbol 从自己的 run_length 口袋中不放回抽取。
-    """
     pockets = build_run_length_pockets(config)
 
     for pocket in pockets.values():
@@ -235,12 +209,15 @@ def print_custom_format(axes: dict[int, list[int]], outer_key: str = "￥") -> N
 
 if __name__ == "__main__":
     config = StripBuildConfig(
-        run_lengths=    [1,  2, 3, 4, 5],
-        run_weights=    [6, 18, 12, 3, 1],
+        run_lengths=    [1, 2, 3, 4, 5],
+        run_weights=    [9, 0, 0, 0, 0],
         symbols=        [1, 2, 3, 4, 5, 6, 7, 8, 9],
-        symbol_weights= [6, 0, 6, 0, 6, 0, 4, 0, 3],
-        # symbol_weights= [0, 6, 0, 6, 0, 5, 0, 5, 0],
-        axis_count=3,
+        # symbol_weights= [3, 3, 3, 3, 3, 2, 2, 2, 1],  # 长条轴专用：1.包含4\5连片；2.符号全涵盖
+        # symbol_weights= [0, 4, 0, 4, 0, 2, 0, 2, 1],  # 错位轴组件1
+        # symbol_weights= [3, 0, 3, 0, 3, 0, 2, 0, 1],  # 错位轴组件2
+        # symbol_weights= [1, 0, 1, 0, 1, 0, 1, 0, 1],    # buy free专用1
+        symbol_weights= [1, 1, 0, 1, 0, 1, 0, 1, 0],    # buy free专用2
+        axis_count=6,
         seed=12345,
     )
 

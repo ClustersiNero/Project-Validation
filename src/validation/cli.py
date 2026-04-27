@@ -2,6 +2,8 @@ import argparse
 import importlib
 import json
 import sys
+import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
@@ -25,6 +27,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=42, help="Deterministic seed.")
     parser.add_argument("--mode-id", type=int, default=1, help="Simulation mode id.")
     parser.add_argument("--bet-count", type=int, default=100, help="Number of bets to run.")
+    parser.add_argument(
+        "--progress",
+        action="store_true",
+        help="Show a simple progress bar while simulating bets.",
+    )
     parser.add_argument(
         "--with-default-rules",
         action="store_true",
@@ -53,6 +60,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     validation_rules: ValidationRules | None = (
         _load_default_validation_rules() if args.with_default_rules else None
     )
+    reporter = ProgressReporter() if args.progress else None
     result = run(
         {
             "seed": args.seed,
@@ -65,6 +73,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "implementation_config": config_module.IMPLEMENTATION_CONFIG,
         },
         validation_rules=validation_rules,
+        progress_callback=reporter.build_counter_callback("Simulating") if reporter else None,
+        post_progress_callback=reporter.post_processing_callback if reporter else None,
     )
     if args.output_trace:
         export_trace_markdown(
@@ -72,6 +82,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             config_module.PAYTABLE,
             args.output_trace,
             config_module_path=args.config_module,
+            progress_callback=reporter.build_counter_callback("Writing trace") if reporter else None,
         )
     if args.output_tuning_prefix:
         export_tuning_csvs(
@@ -79,6 +90,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.output_tuning_prefix,
             config_module_path=args.config_module,
         )
+    if reporter is not None:
+        reporter.finish()
     summary = _build_summary_data(result, args.config_module)
     if args.output_json:
         _write_summary_json(summary, args.output_json)
@@ -106,7 +119,7 @@ def _format_summary(summary: dict) -> str:
         f"- basic_rtp: {_format_metric_summary(metrics['basic_rtp'])}",
         f"- free_rtp: {_format_metric_summary(metrics['free_rtp'])}",
         f"- bet_hit_frequency: {_format_metric_summary(metrics['bet_hit_frequency'])}",
-        f"- free_containing_bet_frequency: {_format_metric_summary(metrics['free_containing_bet_frequency'])}",
+        f"- free_trigger_frequency: {_format_metric_summary(metrics['free_trigger_frequency'])}",
         f"- round_hit_frequency: {_format_metric_summary(metrics['round_hit_frequency'])}",
         f"- roll_hit_frequency: {_format_metric_summary(metrics['roll_hit_frequency'])}",
         f"- initial_roll_share: {_format_metric_summary(metrics['initial_roll_share'])}",
@@ -161,7 +174,7 @@ def _build_summary_data(result: PipelineResult, config_module_path: str) -> dict
             "basic_rtp": _metric_to_dict(result.metrics_bundle.bet_metrics.core.basic_rtp),
             "free_rtp": _metric_to_dict(result.metrics_bundle.bet_metrics.core.free_rtp),
             "bet_hit_frequency": _metric_to_dict(result.metrics_bundle.bet_metrics.core.bet_hit_frequency),
-            "free_containing_bet_frequency": _metric_to_dict(
+            "free_trigger_frequency": _metric_to_dict(
                 result.metrics_bundle.bet_metrics.core.free_containing_bet_frequency
             ),
             "round_hit_frequency": _metric_to_dict(result.metrics_bundle.round_metrics.core.round_hit_frequency),
@@ -247,3 +260,53 @@ def _write_summary_json(summary: dict, output_path: str) -> None:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+
+@dataclass
+class ProgressReporter:
+    bar_width: int = 30
+    min_interval_seconds: float = 0.1
+    _last_signature: tuple[str, int, int, str | None] | None = None
+    _last_update: float = 0.0
+    _rendered: bool = False
+
+    def build_counter_callback(self, label: str):
+        def callback(completed: int, total: int) -> None:
+            self.render(label, completed, total)
+
+        return callback
+
+    def post_processing_callback(self, completed: int, total: int, detail: str) -> None:
+        self.render("Post-processing", completed, total, detail)
+
+    def render(
+        self,
+        label: str,
+        completed: int,
+        total: int,
+        detail: str | None = None,
+    ) -> None:
+        now = time.monotonic()
+        signature = (label, completed, total, detail)
+        if (
+            completed < total
+            and signature == self._last_signature
+            and now - self._last_update < self.min_interval_seconds
+        ):
+            return
+        percent = 100 if total <= 0 else int((completed / total) * 100)
+        filled = 0 if total <= 0 else int((completed / total) * self.bar_width)
+        bar = "#" * filled + "-" * (self.bar_width - filled)
+        suffix = f" {detail}" if detail else ""
+        print(
+            f"\r{label} [{bar}] {completed}/{total} ({percent}%){suffix}",
+            end="",
+            flush=True,
+        )
+        self._last_signature = signature
+        self._last_update = now
+        self._rendered = True
+
+    def finish(self) -> None:
+        if self._rendered:
+            print()

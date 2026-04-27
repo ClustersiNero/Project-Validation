@@ -20,6 +20,7 @@ def record_canonical_result(
     config: SimulationConfig,
     execution: SimulationExecution,
 ) -> CanonicalResult:
+    bet_cost_multiplier = _bet_cost_multiplier(config)
     metadata = SimulationMetadata(
         simulation_id=f"simulation-seed-{config.seed}",
         config_id="simulation_config",
@@ -28,7 +29,7 @@ def record_canonical_result(
         schema_version="canonical.v1",
         mode=_mode_name(config),
         seed=config.seed,
-        bet_amount=1.0,
+        bet_amount=bet_cost_multiplier,
         bet_level=1.0,
         total_bets=execution.bet_count,
         timestamp="1970-01-01T00:00:00Z",
@@ -118,3 +119,9 @@ def _mode_name(config: SimulationConfig) -> str:
     if config.simulation_mode is None:
         return "normal"
     return config.simulation_mode[config.mode_id]["mode_name"]
+
+
+def _bet_cost_multiplier(config: SimulationConfig) -> float:
+    if config.simulation_mode is None:
+        return 1.0
+    return float(config.simulation_mode[config.mode_id]["bet_cost_multiplier"])

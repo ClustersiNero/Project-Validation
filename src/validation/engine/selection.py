@@ -1,3 +1,5 @@
+from math import gcd
+
 from validation.engine.rng import RNG
 
 
@@ -11,14 +13,34 @@ def choose_weighted_id(weights: list[int], rng: RNG) -> int:
     if total_weight <= 0:
         raise ValueError("sum(weights) must be positive")
 
-    draw = rng.next_int(1, total_weight)
+    reachable_ids = [index + 1 for index, weight in enumerate(weights) if weight > 0]
+    if len(reachable_ids) == 1:
+        return reachable_ids[0]
+
+    normalized_weights = _normalize_weights(weights)
+    normalized_total_weight = sum(normalized_weights)
+
+    draw = rng.next_int(1, normalized_total_weight)
     cumulative_weight = 0
-    for index, weight in enumerate(weights):
+    for index, weight in enumerate(normalized_weights):
         cumulative_weight += weight
         if draw <= cumulative_weight:
             return index + 1
 
     raise RuntimeError("weighted selection failed")
+
+
+def _normalize_weights(weights: list[int]) -> list[int]:
+    positive_weights = [weight for weight in weights if weight > 0]
+    common_divisor = positive_weights[0]
+    for weight in positive_weights[1:]:
+        common_divisor = gcd(common_divisor, weight)
+    if common_divisor == 1:
+        return list(weights)
+    return [
+        0 if weight == 0 else weight // common_divisor
+        for weight in weights
+    ]
 
 
 def choose_round_strip_set_id(

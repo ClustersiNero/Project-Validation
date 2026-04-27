@@ -13,194 +13,194 @@
   },
   "metrics": {
     "empirical_rtp": {
-      "observed": 0.2758000000000001,
-      "standard_deviation": 1.0186299460387858,
+      "observed": 1.0828999999999984,
+      "standard_deviation": 7.620312444496759,
       "sample_size": 1000
     },
     "basic_rtp": {
-      "observed": 0.2758000000000001,
-      "standard_deviation": 1.0186299460387858,
+      "observed": 0.6656999999999988,
+      "standard_deviation": 2.258747540220112,
       "sample_size": 1000
     },
     "free_rtp": {
-      "observed": 0.0,
-      "standard_deviation": 0.0,
+      "observed": 0.4172,
+      "standard_deviation": 7.102834604537731,
       "sample_size": 1000
     },
     "bet_hit_frequency": {
-      "observed": 0.184,
-      "standard_deviation": 0.3876780807503728,
+      "observed": 0.336,
+      "standard_deviation": 0.4725752081175345,
       "sample_size": 1000
     },
-    "free_containing_bet_frequency": {
-      "observed": 0.0,
-      "standard_deviation": 0.0,
+    "free_trigger_frequency": {
+      "observed": 0.005,
+      "standard_deviation": 0.07056897321046941,
       "sample_size": 1000
     },
     "round_hit_frequency": {
-      "observed": 0.184,
-      "standard_deviation": 0.3876780807503728,
-      "sample_size": 1000
+      "observed": 0.3345622119815668,
+      "standard_deviation": 0.4720547816053008,
+      "sample_size": 1085
     },
     "roll_hit_frequency": {
-      "observed": 0.19549477071600965,
-      "standard_deviation": 0.39674071764041197,
-      "sample_size": 1243
+      "observed": 0.3184673366834171,
+      "standard_deviation": 0.466028232192212,
+      "sample_size": 1592
     },
     "initial_roll_share": {
-      "observed": 0.8045052292839904,
-      "standard_deviation": 0.39674071764041197,
-      "sample_size": 1243
+      "observed": 0.6815326633165829,
+      "standard_deviation": 0.466028232192212,
+      "sample_size": 1592
     },
     "cascade_roll_share": {
-      "observed": 0.19549477071600965,
-      "standard_deviation": 0.39674071764041197,
-      "sample_size": 1243
+      "observed": 0.3184673366834171,
+      "standard_deviation": 0.466028232192212,
+      "sample_size": 1592
     }
   },
   "statistical": {
-    "passed_checks": 0,
-    "failed_checks": 14,
+    "passed_checks": 11,
+    "failed_checks": 3,
     "checks": [
       {
         "metric_path": "MetricsBundle.bet_metrics.core.empirical_rtp",
         "check_type": "ci",
-        "verdict": "fail",
-        "observed": 0.2758000000000001,
-        "expected_value": 0.97,
+        "verdict": "pass",
+        "observed": 1.0828999999999984,
+        "expected_value": 0.959,
         "expected_range": null,
-        "deviation": -0.6941999999999999,
+        "deviation": 0.12389999999999846,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.bet_metrics.core.basic_rtp",
         "check_type": "ci",
-        "verdict": "fail",
-        "observed": 0.2758000000000001,
-        "expected_value": 0.63,
+        "verdict": "pass",
+        "observed": 0.6656999999999988,
+        "expected_value": 0.647,
         "expected_range": null,
-        "deviation": -0.3541999999999999,
+        "deviation": 0.01869999999999883,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.bet_metrics.core.free_rtp",
         "check_type": "ci",
-        "verdict": "fail",
-        "observed": 0.0,
-        "expected_value": 0.34,
+        "verdict": "pass",
+        "observed": 0.4172,
+        "expected_value": 0.312,
         "expected_range": null,
-        "deviation": -0.34,
+        "deviation": 0.10520000000000002,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.bet_metrics.core.bet_hit_frequency",
         "check_type": "ci",
         "verdict": "fail",
-        "observed": 0.184,
-        "expected_value": 0.3,
+        "observed": 0.336,
+        "expected_value": 0.304,
         "expected_range": null,
-        "deviation": -0.11599999999999999,
+        "deviation": 0.03200000000000003,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.round_metrics.core.round_hit_frequency",
         "check_type": "ci",
         "verdict": "fail",
-        "observed": 0.184,
-        "expected_value": 0.3,
+        "observed": 0.3345622119815668,
+        "expected_value": 0.302,
         "expected_range": null,
-        "deviation": -0.11599999999999999,
+        "deviation": 0.032562211981566835,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.roll_metrics.core.roll_hit_frequency",
         "check_type": "ci",
-        "verdict": "fail",
-        "observed": 0.19549477071600965,
-        "expected_value": 0.4,
+        "verdict": "pass",
+        "observed": 0.3184673366834171,
+        "expected_value": 0.299,
         "expected_range": null,
-        "deviation": -0.20450522928399037,
+        "deviation": 0.019467336683417102,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.roll_metrics.core.roll_type_distribution.initial",
         "check_type": "ci",
-        "verdict": "fail",
-        "observed": 0.8045052292839904,
-        "expected_value": 0.5,
+        "verdict": "pass",
+        "observed": 0.6815326633165829,
+        "expected_value": 0.701,
         "expected_range": null,
-        "deviation": 0.3045052292839904,
+        "deviation": -0.019467336683417047,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.roll_metrics.core.roll_type_distribution.cascade",
         "check_type": "ci",
-        "verdict": "fail",
-        "observed": 0.19549477071600965,
-        "expected_value": 0.5,
+        "verdict": "pass",
+        "observed": 0.3184673366834171,
+        "expected_value": 0.299,
         "expected_range": null,
-        "deviation": -0.3045052292839904,
+        "deviation": 0.019467336683417102,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.bet_metrics.core.free_containing_bet_frequency",
         "check_type": "ci",
-        "verdict": "fail",
-        "observed": 0.0,
-        "expected_value": 0.005,
+        "verdict": "pass",
+        "observed": 0.005,
+        "expected_value": 0.0043,
         "expected_range": null,
-        "deviation": -0.005,
+        "deviation": 0.0007000000000000001,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.bet_metrics.structure.avg_free_rounds_per_bet",
         "check_type": "ci",
-        "verdict": "fail",
-        "observed": 0.0,
-        "expected_value": 0.15,
+        "verdict": "pass",
+        "observed": 0.085,
+        "expected_value": 0.077,
         "expected_range": null,
-        "deviation": -0.15,
+        "deviation": 0.008000000000000007,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.round_metrics.basic.round_hit_frequency",
         "check_type": "ci",
         "verdict": "fail",
-        "observed": 0.184,
-        "expected_value": 0.3,
+        "observed": 0.336,
+        "expected_value": 0.304,
         "expected_range": null,
-        "deviation": -0.11599999999999999,
+        "deviation": 0.03200000000000003,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.round_metrics.free.round_hit_frequency",
         "check_type": "ci",
-        "verdict": "fail",
-        "observed": null,
-        "expected_value": 0.3,
+        "verdict": "pass",
+        "observed": 0.3176470588235294,
+        "expected_value": 0.279,
         "expected_range": null,
-        "deviation": null,
-        "notes": "CI check is non-computable because observed, standard_deviation, or sample_size is insufficient"
+        "deviation": 0.03864705882352937,
+        "notes": ""
       },
       {
         "metric_path": "MetricsBundle.round_metrics.basic.avg_round_win_amount",
         "check_type": "ci",
-        "verdict": "fail",
-        "observed": 0.2758000000000001,
-        "expected_value": 2.0,
+        "verdict": "pass",
+        "observed": 0.6656999999999988,
+        "expected_value": 0.647,
         "expected_range": null,
-        "deviation": -1.7242,
+        "deviation": 0.01869999999999883,
         "notes": ""
       },
       {
         "metric_path": "MetricsBundle.round_metrics.free.avg_round_win_amount",
         "check_type": "ci",
-        "verdict": "fail",
-        "observed": null,
-        "expected_value": 4.0,
+        "verdict": "pass",
+        "observed": 4.908235294117647,
+        "expected_value": 4.037,
         "expected_range": null,
-        "deviation": null,
-        "notes": "CI check is non-computable because observed, standard_deviation, or sample_size is insufficient"
+        "deviation": 0.8712352941176471,
+        "notes": ""
       }
     ]
   }

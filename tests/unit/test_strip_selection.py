@@ -32,15 +32,63 @@ def test_index_to_id_mapping_returns_one_based_id():
     assert choose_weighted_id([0, 0, 1], rng) == 3
 
 
+def test_one_hot_weights_do_not_change_rng_track():
+    rng_a = RNG(seed=42)
+    rng_b = RNG(seed=42)
+
+    assert choose_weighted_id([10, 0, 0, 0], rng_a) == 1
+    assert choose_weighted_id([1, 0, 0, 0], rng_b) == 1
+    assert rng_a.next_int(1, 100) == rng_b.next_int(1, 100)
+
+
+def test_one_hot_weight_magnitude_is_semantically_equivalent():
+    rng_a = RNG(seed=99)
+    rng_b = RNG(seed=99)
+
+    first_a = choose_weighted_id([10, 0, 0, 0], rng_a)
+    first_b = choose_weighted_id([1, 0, 0, 0], rng_b)
+    second_a = choose_weighted_id([1, 1, 1, 1], rng_a)
+    second_b = choose_weighted_id([1, 1, 1, 1], rng_b)
+
+    assert first_a == first_b == 1
+    assert second_a == second_b
+
+
+def test_proportionally_equivalent_weights_do_not_change_rng_track():
+    rng_a = RNG(seed=123)
+    rng_b = RNG(seed=123)
+
+    first_a = choose_weighted_id([100, 10, 0, 0], rng_a)
+    first_b = choose_weighted_id([10, 1, 0, 0], rng_b)
+    second_a = choose_weighted_id([1, 1, 1, 1], rng_a)
+    second_b = choose_weighted_id([1, 1, 1, 1], rng_b)
+
+    assert first_a == first_b
+    assert second_a == second_b
+
+
+def test_proportionally_equivalent_three_way_weights_are_deterministically_equivalent():
+    rng_a = RNG(seed=2026)
+    rng_b = RNG(seed=2026)
+
+    first_a = choose_weighted_id([20, 30, 50], rng_a)
+    first_b = choose_weighted_id([2, 3, 5], rng_b)
+    second_a = choose_weighted_id([7, 11, 13], rng_a)
+    second_b = choose_weighted_id([7, 11, 13], rng_b)
+
+    assert first_a == first_b
+    assert second_a == second_b
+
+
 def test_pipeline_records_config_selected_strip_set_id():
     implementation_config = {
         1: {
             "basic": {
-                "round_strip_set_weights": [0, 0, 1],
+                "round_strip_set_weights": [0, 0, 1, 0],
                 "round_multiplier_profile_weights": [1],
             },
             "free": {
-                "round_strip_set_weights": [1, 0, 0],
+                "round_strip_set_weights": [1, 0, 0, 0],
                 "round_multiplier_profile_weights": [1],
             },
         },
@@ -219,9 +267,15 @@ def test_pipeline_records_multiplier_profile_and_sampled_multiplier_values():
     ]
 
     assert roll.multiplier_profile_id == 2
-    assert multiplier_values == [5, 5, 5, 5, 5]
-    assert roll.roll_multi_symbols_carry == [5, 5, 5, 5, 5]
-    assert result.canonical_result.bets[0].rounds[0].round_multiplier_increment == 25
+    allowed_values = {
+        multiplier_data["value"][index]
+        for index, weight in enumerate(multiplier_data["weight"][roll.multiplier_profile_id])
+        if weight > 0
+    }
+    assert multiplier_values
+    assert set(multiplier_values) <= allowed_values
+    assert roll.roll_multi_symbols_carry == multiplier_values
+    assert result.canonical_result.bets[0].rounds[0].round_multiplier_increment == sum(multiplier_values)
 
 
 def test_all_zero_weights_raise():

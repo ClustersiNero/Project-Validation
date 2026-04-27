@@ -108,21 +108,21 @@ def test_statistical_validation_uses_external_default_rules():
     assert normal_rule_paths == expected_paths
     assert buy_free_rule_paths == expected_paths
     assert chance_increase_rule_paths == expected_paths
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["normal"]["MetricsBundle.bet_metrics.core.basic_rtp"].expected_value == 0.63
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["normal"]["MetricsBundle.bet_metrics.core.free_rtp"].expected_value == 0.34
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["buy_free"]["MetricsBundle.bet_metrics.core.basic_rtp"].expected_value == 0.01
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["buy_free"]["MetricsBundle.bet_metrics.core.free_rtp"].expected_value == 0.95
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["chance_increase"]["MetricsBundle.bet_metrics.core.basic_rtp"].expected_value == 0.35
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["chance_increase"]["MetricsBundle.bet_metrics.core.free_rtp"].expected_value == 0.62
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["normal"]["MetricsBundle.roll_metrics.core.roll_type_distribution.initial"].expected_value == 0.50
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["normal"]["MetricsBundle.roll_metrics.core.roll_type_distribution.cascade"].expected_value == 0.50
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["buy_free"]["MetricsBundle.roll_metrics.core.roll_type_distribution.initial"].expected_value == 0.45
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["buy_free"]["MetricsBundle.roll_metrics.core.roll_type_distribution.cascade"].expected_value == 0.55
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["chance_increase"]["MetricsBundle.roll_metrics.core.roll_type_distribution.initial"].expected_value == 0.55
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["chance_increase"]["MetricsBundle.roll_metrics.core.roll_type_distribution.cascade"].expected_value == 0.45
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["normal"]["MetricsBundle.bet_metrics.core.bet_hit_frequency"].expected_value == 0.30
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["normal"]["MetricsBundle.bet_metrics.core.basic_rtp"].expected_value == 0.647
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["normal"]["MetricsBundle.bet_metrics.core.free_rtp"].expected_value == 0.312
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["buy_free"]["MetricsBundle.bet_metrics.core.basic_rtp"].expected_value == 0.038
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["buy_free"]["MetricsBundle.bet_metrics.core.free_rtp"].expected_value == 0.912
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["chance_increase"]["MetricsBundle.bet_metrics.core.basic_rtp"].expected_value == 0.457
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["chance_increase"]["MetricsBundle.bet_metrics.core.free_rtp"].expected_value == 0.52
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["normal"]["MetricsBundle.roll_metrics.core.roll_type_distribution.initial"].expected_value == 0.701
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["normal"]["MetricsBundle.roll_metrics.core.roll_type_distribution.cascade"].expected_value == 0.299
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["buy_free"]["MetricsBundle.roll_metrics.core.roll_type_distribution.initial"].expected_value == 0.738
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["buy_free"]["MetricsBundle.roll_metrics.core.roll_type_distribution.cascade"].expected_value == 0.262
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["chance_increase"]["MetricsBundle.roll_metrics.core.roll_type_distribution.initial"].expected_value == 0.707
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["chance_increase"]["MetricsBundle.roll_metrics.core.roll_type_distribution.cascade"].expected_value == 0.293
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["normal"]["MetricsBundle.bet_metrics.core.bet_hit_frequency"].expected_value == 0.304
     assert DEFAULT_VALIDATION_RULES.metrics_by_mode["buy_free"]["MetricsBundle.bet_metrics.core.bet_hit_frequency"].expected_value == 1.0
-    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["chance_increase"]["MetricsBundle.bet_metrics.core.bet_hit_frequency"].expected_value == 0.25
+    assert DEFAULT_VALIDATION_RULES.metrics_by_mode["chance_increase"]["MetricsBundle.bet_metrics.core.bet_hit_frequency"].expected_value == 0.302
 
 
 def test_statistical_validation_uses_current_mode_rules_over_global_rules():

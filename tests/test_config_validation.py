@@ -213,10 +213,10 @@ def test_missing_round_multiplier_profile_weights_raises():
 def test_reachable_multiplier_profiles_must_exist():
     implementation_config = _implementation_config(
         basic={
-            "round_strip_set_weights": [1, 0, 0],
+            "round_strip_set_weights": [1, 0, 0, 0],
             "round_multiplier_profile_weights": [0, 0, 1],
         },
-        strip_set_count=3,
+        strip_set_count=4,
         multiplier_profile_count=3,
     )
     multiplier_data = {

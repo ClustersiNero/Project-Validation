@@ -239,3 +239,46 @@ def test_statistical_metric_small_sample_contract():
     assert one_bet_metrics.bet_metrics.core.avg_bet_win_amount.observed == 3.0
     assert one_bet_metrics.bet_metrics.core.avg_bet_win_amount.standard_deviation is None
     assert one_bet_metrics.bet_metrics.core.avg_bet_win_amount.sample_size == 1
+
+
+def test_metrics_rtp_uses_metadata_bet_amount_as_denominator():
+    result = CanonicalResult(
+        simulation_metadata=SimulationMetadata(
+            simulation_id="metrics-bet-cost-test",
+            config_id="simulation_config",
+            config_version="0.1.0",
+            engine_version="engine.v1",
+            schema_version="canonical.v1",
+            mode="buy_free",
+            seed=5,
+            bet_amount=80.0,
+            bet_level=1.0,
+            total_bets=1,
+            timestamp="1970-01-01T00:00:00Z",
+        ),
+        bets=[
+            BetRecord(
+                bet_id=0,
+                bet_win_amount=40.0,
+                basic_win_amount=8.0,
+                free_win_amount=32.0,
+                round_count=1,
+                rounds=[
+                    RoundRecord(
+                        round_id=0,
+                        round_type="basic",
+                        round_win_amount=40.0,
+                        roll_count=1,
+                        rolls=[RollRecord(roll_id=0, roll_type="initial", roll_win_amount=40.0)],
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    metrics = compute_metrics_impl(result)
+
+    assert metrics.meta.total_bet_amount == 80.0
+    assert metrics.bet_metrics.core.empirical_rtp.observed == 0.5
+    assert metrics.bet_metrics.core.basic_rtp.observed == 0.1
+    assert metrics.bet_metrics.core.free_rtp.observed == 0.4
