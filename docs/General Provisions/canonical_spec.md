@@ -1,20 +1,23 @@
-# 0. Scope
+# Canonical Specification
 
-This file defines the canonical result schema for downstream processing.
+## 0. Purpose
 
-CanonicalResult is the single source of truth for:
+This document defines the canonical result schema used by downstream layers.
 
-- final outcomes
+`CanonicalResult` is the single source of truth for:
+
+- simulation metadata
+- ordered bet records
 - ordered round records
 - ordered roll records
-- state progression required for replay and reconstruction
+- board-state progression required for audit and reconstruction
 
 It is not a metrics file.
 It is not a validation file.
 
 ---
 
-# 1. Top-Level Object
+## 1. Top-Level Object
 
 ```python
 CanonicalResult = {
@@ -25,7 +28,27 @@ CanonicalResult = {
 
 ---
 
-# 2. SimulationMetadata
+## 2. Shared Types
+
+```python
+Cell = {
+    "symbol_id": int,
+    "multiplier_value": int | None,
+}
+
+BoardState = list[list[Cell | None]]
+```
+
+Rules:
+
+- non-multiplier symbols MUST have `multiplier_value = null`
+- multiplier symbols MUST have a non-null `multiplier_value`
+- board orientation is `matrix[row][col]`
+- row `0` is the bottom row; row index increases upward
+
+---
+
+## 3. SimulationMetadata
 
 ```python
 SimulationMetadata = {
@@ -43,17 +66,15 @@ SimulationMetadata = {
 }
 ```
 
-## Notes
+Notes:
 
-* `mode` records the entry mode of the bet execution.
-* `simulation_metadata` belongs to the simulation level, not the bet level.
-* bet_amount records the actual paid amount per bet
-* bet_level records the payout normalization base used for paytable evaluation
-* `timestamp` is audit metadata. It MUST be present, but it MUST NOT be generated from hidden runtime clock state when deterministic replay equality is required.
+- `bet_amount` records actual paid cost per bet
+- `bet_level` records the payout normalization base used for paytable evaluation
+- `timestamp` is audit metadata; presence is required, but it is not outcome-bearing
 
 ---
 
-# 3. BetRecord
+## 4. BetRecord
 
 ```python
 BetRecord = {
@@ -62,178 +83,150 @@ BetRecord = {
     "basic_win_amount": float,
     "free_win_amount": float,
     "round_count": int,
-    "bet_final_state": object,
+    "bet_final_state": BoardState | None,
     "rounds": list[RoundRecord],
 }
 ```
 
-## Notes
+Notes:
 
-* one bet contains one or more rounds
-* `bet_final_state` records the final state after the bet is fully resolved
-* `basic_win_amount` records the win from the initial basic round
-* `free_win_amount` records the aggregated win from free rounds
+- one bet contains one or more rounds
+- `bet_final_state` records the final board state after the bet is fully resolved
+- `basic_win_amount` records the win from the initial basic flow
+- `free_win_amount` records the aggregated win from free rounds
 
 ---
 
-# 4. RoundRecord
+## 5. RoundRecord
 
 ```python
 RoundRecord = {
     "round_id": int,
     "round_type": str,
     "round_win_amount": float,
-
     "base_symbol_win_amount": float,
     "carried_multiplier": float,
     "round_multiplier_increment": float,
     "round_total_multiplier": float,
-
     "round_scatter_increment": int,
     "award_free_rounds": int,
     "scatter_win_amount": float,
-
     "roll_count": int,
-    "round_final_state": object,
+    "round_final_state": BoardState | None,
     "rolls": list[RollRecord],
 }
 ```
 
-## Notes
+Notes:
 
-* `round_type` is either `basic` or `free`
-* one round belongs to one bet
-* one round contains one or more rolls
-* `base_symbol_win_amount` records the aggregated base symbol win amount before multiplier application
-* `carried_multiplier` records the carried-in multiplier at round start
-* `round_multiplier_increment` records the multiplier increment generated within the current round
-* `round_total_multiplier` records the effective multiplicative factor applied to `base_symbol_win_amount` for the current round and must be `1` when no multiplier is applied
-* `round_scatter_increment` records the scatter count of the current round
-* `award_free_rounds` records the free rounds awarded by the current round
-* `scatter_win_amount` records the scatter win amount of the current round
-* `round_final_state` records the final state after the round is fully resolved
-* multiplier is applied on base_symbol_win_amount, which is derived from `bet_level`-based payout evaluation
+- `round_type` is either `basic` or `free`
+- one round belongs to one bet
+- one round contains one or more rolls
+- `base_symbol_win_amount` is aggregated before round-level multiplier settlement
+- `carried_multiplier` is the carried-in multiplier at round start
+- `round_multiplier_increment` is the multiplier increment generated within the current round
+- `round_total_multiplier` records the multiplier factor applied to `base_symbol_win_amount`
+- `round_total_multiplier` MUST be `1` when `round_multiplier_increment == 0`
+- `round_final_state` records the final board state after the round is fully resolved
 
-## Round Execution Semantics
+### Carried Multiplier Semantics
 
-* a round starts with `round_type` and `carried_multiplier`
-* rolls are executed in order until no further cascade is generated
-* `base_symbol_win_amount` is the sum of base wins from all rolls in the round
-* `round_multiplier_increment` is the sum of multiplier values generated by multiplier symbols in the round
-* multiplier applies only to `base_symbol_win_amount`
-* carried `carried_multiplier` applies only when the current round generates `round_multiplier_increment > 0`
-  * if `round_multiplier_increment > 0`, the effective round multiplier is:
-    * `carried_multiplier + round_multiplier_increment`
-* if `round_multiplier_increment = 0`, then:
-  * `round_total_multiplier = 1`
-  * no multiplier is applied to the round base symbol win
+- carried multiplier is updated across rounds at the bet level
+- carry persists only across free rounds
+- current-round settlement uses `carried_multiplier + round_multiplier_increment` only when the current round generates multiplier increment
+- if `round_multiplier_increment == 0`, then `round_total_multiplier = 1` and no carry is applied to the current round
 
-## Carried Multiplier Semantics
-
-* `carried_multiplier` is updated across rounds at the bet level
-* the carry update happens only when:
-
-  * `round_type = free`
-  * and `base_symbol_win_amount > 0`
-* in that case, the current round's `round_multiplier_increment` is accumulated into the carried multiplier for subsequent rounds
-* the carried multiplier update occurs after current-round settlement; it affects subsequent rounds only and does not modify the meaning of the current round's `carried_multiplier`, which remains the carried-in multiplier at round start
-* If the carry-update condition is not satisfied, the current round_multiplier_increment affects current-round settlement only and MUST NOT be persisted into subsequent rounds.
 ---
 
-# 5. RollRecord
-
-## Cell Type
-
-```python
-Cell = {
-    "symbol_id": int,
-    "multiplier_value": int | None,
-}
-```
-
-Rules:
-
-* non-multiplier symbols MUST have `multiplier_value = null`
-* multiplier symbols MUST record the assigned `multiplier_value` as a non-null integer
+## 6. RollRecord
 
 ```python
 RollRecord = {
     "roll_id": int,
     "roll_win_amount": float,
     "roll_type": str,
-
     "strip_set_id": int,
     "multiplier_profile_id": int,
-
-    "roll_filled_state": list[list[Cell]],
-    "roll_final_state": list[list[Cell | None]],
-
+    "column_strip_ids": list[int],
+    "fill_start_indices": list[int],
+    "fill_end_indices": list[int],
+    "roll_pre_fill_state": BoardState,
+    "roll_filled_state": BoardState,
+    "roll_cleared_state": BoardState,
+    "roll_gravity_state": BoardState,
     "roll_multi_symbols_num": int,
     "roll_multi_symbols_carry": list[int],
     "roll_scatter_symbols_num": int,
 }
 ```
 
-## Notes
+Notes:
 
-* one roll belongs to one round
-* rolls are ordered within a round
-* `roll_type` indicates whether the roll is the initial drop of the round or a cascade (refill) step:
-  - "initial": the first roll of a round
-  - "cascade": subsequent rolls triggered by symbol clearing and refill
-* `roll_filled_state` records the filled symbol matrix used for evaluation in the current roll; matrix orientation is `matrix[row][col]`; row 0 is the bottom row and row index increases upward; must not contain empty positions
-* `roll_final_state` records the post-settlement board state after regular-symbol clearing and gravity resolution, before the next refill boundary; matrix orientation is `matrix[row][col]`; row 0 is the bottom row and row index increases upward; may contain `null` for empty positions
-* `roll_multi_symbols_num` records the number of multiplier symbols generated in the roll
-* `roll_multi_symbols_carry` records the multiplier values of each multiplier symbol generated in the roll
-* `roll_scatter_symbols_num` records the number of scatter symbols generated in the roll
-* `roll_win_amount` records the base symbol win generated in the roll before round-level multiplier settlement
-* roll_win_amount is computed from paytable using `bet_level` but excludes any round-level multiplier application
+- one roll belongs to one round
+- rolls are ordered within a round
+- `roll_type` is either `initial` or `cascade`
+- `column_strip_ids` are fixed within a round and identify which strip is assigned to each column
+- `fill_start_indices` and `fill_end_indices` record the actual strip index range used during the current roll fill
+- `roll_pre_fill_state` is the board state before the current fill
+- `roll_filled_state` is the filled board used for evaluation
+- `roll_cleared_state` is the board after clearing winning regular symbols
+- `roll_gravity_state` is the board after gravity; it is the terminal state of the roll
+- `roll_win_amount` records base symbol win for the roll before round-level multiplier settlement
 
-## Roll Execution Semantics
+### Roll Execution Semantics
 
-* a roll reads the current symbol matrix
-* empty positions are filled according to configuration
-* if multiplier symbols are generated, multiplier values are assigned according to configuration
-* base symbol wins are evaluated
-* winning symbols are cleared
-* scatter symbols and multiplier symbols remain in board state across rolls, however, round-level aggregation must count each scatter symbol instance and multiplier symbol instance at most once within the same round
-* symbol instance identity is defined as `(first_observed_roll_id, first_observed_row, first_observed_col)`; gravity movement within subsequent cascades does not create a new instance
-* gravity is applied
-* the resulting matrix becomes the input state for the next roll, if cascade continues
+- a roll begins at `roll_pre_fill_state`
+- empty positions are filled according to config
+- multiplier values are assigned to generated multiplier symbols
+- base symbol wins are evaluated
+- winning regular symbols are cleared
+- gravity is applied
+- the resulting `roll_gravity_state` becomes the next roll's `roll_pre_fill_state` if cascade continues
 
----
+Scatter and multiplier symbols may remain present across rolls, but round-level aggregation MUST count each symbol instance at most once within the same round.
 
-# 6. Structural Rules
+Symbol instance identity is defined as:
 
-* `simulation_metadata` MUST be present
-* `bets` MUST be present
-* `round_count` MUST equal the number of recorded rounds in `rounds`
-* `roll_count` MUST equal the number of recorded rolls in `rolls`
-* records MUST preserve execution order at bet, round, and roll levels
+```text
+(first_observed_roll_id, first_observed_row, first_observed_col)
+```
+
+Gravity movement within subsequent cascades does not create a new instance.
 
 ---
 
-# 7. Canonical Rules
+## 7. Structural Rules
+
+- `simulation_metadata` MUST be present
+- `bets` MUST be present
+- `simulation_metadata.total_bets == len(bets)`
+- `bet.round_count == len(bet.rounds)`
+- `round.roll_count == len(round.rolls)`
+- records MUST preserve execution order at bet, round, and roll levels
+
+---
+
+## 8. Canonical Rules
 
 CanonicalResult MUST be:
 
-* deterministic
-* complete
-* neutral
-* free of interpretive metrics
-* free of validation verdicts
+- deterministic
+- complete
+- neutral
+- free of interpretive metrics
+- free of validation verdicts
 
 CanonicalResult MUST NOT include:
 
-* RTP
-* hit frequency
-* pass / fail flags
-* runtime control fields
-* player-dependent logic markers
+- RTP
+- hit frequency
+- pass/fail flags
+- runtime control fields
+- player-dependent logic markers
 
 ---
 
-# 8. Determinism
+## 9. Determinism
 
 The following must hold:
 
@@ -241,35 +234,12 @@ The following must hold:
 (config, seed, engine_version) -> identical CanonicalResult
 ```
 
-Deterministic replay equality applies to outcome-bearing canonical data and to metadata fields that are determined by explicit inputs.
-
-`timestamp` is treated as audit metadata:
-
-* validation MUST check that `timestamp` is present and non-null
-* validation MAY check timestamp format if a format rule is declared
-* deterministic replay comparison MUST NOT fail solely because two otherwise identical runs have different externally recorded execution timestamps
-* if byte-for-byte CanonicalResult equality is required, `timestamp` MUST be supplied as an explicit input rather than generated from the current runtime clock
+Deterministic replay equality applies to outcome-bearing canonical data and to metadata fields determined by explicit inputs.
 
 ---
 
-# 9. Minimal API Contract
+## 10. Minimal API Contract
 
 ```python
-run_simulation(config, seed) -> CanonicalResult
-```
-
----
-
-# Summary
-
-CanonicalResult records:
-
-* simulation metadata
-* bet outcomes
-* round outcomes
-* roll outcomes
-* state progression required for replay and downstream computation
-
-It is the direct downstream recording target of engine execution.
-
+run_simulation(config) -> CanonicalResult
 ```

@@ -1,10 +1,12 @@
-# Purpose
+# Architecture Specification
 
-This specification defines a **validation-oriented slot math architecture contract** for reproducible and inspectable outcome processing.
+## 0. Purpose
 
-The architecture is designed to make game behavior:
+This document defines the current architecture contract for this repository.
 
-- reproducible
+This repository is a **Gate of Olympus-anchored, validation-first slot math prototype**. The architecture is designed to make game behavior:
+
+- deterministic
 - inspectable
 - measurable
 - validation-ready
@@ -13,432 +15,303 @@ It is not a simulation-only or reporting-first document.
 
 ---
 
-# Core Principle
+## 1. Core Principle
 
-> Outcomes must be generated first, then measured, then validated.
+> Outcomes must be generated first, then recorded, then measured, then validated.
 
 Pipeline:
 
+```text
 config -> engine -> canonical result -> metrics -> validation -> optional export
+```
 
 ---
 
-# Naming Contract (Bet-Only, Hierarchical)
+## 2. Naming Contract
 
-This specification enforces a **strict hierarchical naming system**:
+This repository uses a strict hierarchical naming system:
 
-**Bet → Round → Roll**
-
-All naming MUST align with this hierarchy.
-
-## 1. Bet Level (Top-Level Unit)
+```text
+Bet -> Round -> Roll
+```
 
 Required:
 
-* unit name: `bet`
-* collection: `bets`
+- top-level unit: `bet`
+- nested unit: `round`
+- nested unit within round: `roll`
 
-* bet_amount = actual paid amount for this bet
-* bet_level  = payout normalization base (used for paytable and win multiple)
+Forbidden alternatives:
 
-Forbidden:
-
-* any alternative concepts representing the same level, including:
-
-  * `stake`
-  * `wager`
+- `stake`
+- `wager`
+- `spin`
+- `step`
 
 ### Amount System Invariant
 
 The system uses a dual-base model:
 
-- bet_amount:
-  used for cost-based ratios (RTP, return)
+- `bet_amount`
+  - actual paid cost per bet
+  - used for return-based ratios such as RTP
+- `bet_level`
+  - payout normalization base
+  - used for paytable evaluation and win multiples
 
-- bet_level:
-  used for all payout calculations (paytable, win multiple)
-
-All payout generation MUST use bet_level.
-All return-based metrics MUST use bet_amount.
+All payout generation MUST use `bet_level`.
+All return-based metrics MUST use `bet_amount`.
 
 These two MUST NEVER be mixed.
 
 ---
 
-## 2. Round Level (Within Bet)
+## 3. Layer Definitions
 
-Definition:
-
-* A `round` is a sub-unit within a `bet`
-
-Forbidden:
-
-* any naming that breaks hierarchy or reuses other layers, including:
-
-  * `spin`
-  * `bet`
-
----
-
-## 3. Roll Level (Within Round)
-
-Definition:
-
-* A `roll` is a sub-unit within a `round`
-
-Forbidden:
-
-* any naming that overlaps with higher or ambiguous layers, including:
-
-  * `round`
-  * `step`
-
----
-
-### Global Rule
-
-* Naming MUST be **hierarchy-consistent and non-overlapping**
-* Each layer represents a **unique semantic level**
-* Parallel terminology across layers is strictly prohibited
-
----
-
-# Layer Definitions
-
-## 1. CLI / Runner
-
-Input:
-- runtime parameters
-
-Output:
-- pipeline execution trigger
+### 3.1 CLI / Runner
 
 Responsibilities:
-- orchestrate full pipeline
-- select config and mode
 
----
+- accept runtime parameters
+- trigger the full pipeline
+- optionally write exports
 
-## 2. Config
-
-Input:
-- game parameters
-- simulation parameters
-
-Output:
-- normalized config
+### 3.2 Config
 
 Responsibilities:
+
 - provide explicit, versionable inputs
-- ensure reproducibility
+- define the possibility space for simulation
+- ensure reproducibility through fixed config + fixed seed
 
----
-
-## 3. Engine
-
-Input:
-- config
-- RNG (seeded)
-
-Output:
-- raw execution results
+### 3.3 Engine
 
 Responsibilities:
+
 - generate outcomes deterministically
-- apply game logic and payout mapping
+- apply the current game logic
+- produce raw execution results
 
 Rules:
+
 - no reroll
 - no filtering
 - no runtime manipulation
+- no player-dependent logic
 
----
+### 3.4 Canonical Result
 
-## 4. Canonical Result
+The canonical result is the single source of truth for downstream processing.
 
-The canonical result is the **single source of truth** for downstream processing.
+It preserves:
 
-It must preserve both:
-- final outcomes
-- round / roll-level state transitions (if applicable)
+- simulation metadata
+- final economic outcomes
+- round / roll execution structure
+- board-state progression required for audit and reconstruction
 
-Canonical MUST NOT contain interpretive metrics or validation outputs.
-This file defines layer responsibilities and cross-layer contracts.
-The exact CanonicalResult field schema is defined by canonical_spec.md.
+Canonical MUST NOT contain:
 
-### 4.1 Schema
+- interpretive metrics
+- pass/fail judgements
+- validation outputs
 
-#### 4.1.1 Simulation Metadata
-
-- simulation_id
-- config_id
-- config_version
-- engine_version
-- schema_version
-- mode
-- seed
-- bet_amount      (actual paid amount per bet)
-- bet_level       (payout normalization base)
-- total_bets
-- timestamp       (audit metadata; presence required, not outcome-bearing)
-
-Each simulation contains one or more bets.
-mode indicates the entry mode of the bet (e.g. normal, buy_free, chance_increase)
-
-#### 4.1.2 Result Records
-
-##### 4.1.2.1 Bet Records
-
-###### 4.1.2.1.1 Field Name
-
-- bet_id
-- bet_win_amount
-- basic_win_amount
-- free_win_amount
-- round_count
-- bet_final_state
-- rounds
-
-###### 4.1.2.1.2 Structure
-
-Each bet record contains one or more round records in `rounds`.
-
----
-
-##### 4.1.2.2 Round Records
-
-###### 4.1.2.2.1 Field Name
-
-- round_id
-- round_type
-- round_win_amount
-
-- base_symbol_win_amount
-- carried_multiplier
-- round_multiplier_increment
-- round_total_multiplier
-
-- round_scatter_increment
-- award_free_rounds
-- scatter_win_amount
-
-- roll_count
-- round_final_state
-- rolls
-
-###### 4.1.2.2.2 Structure
-
-Each round record belongs to one bet record.
-Each round record contains one or more roll records in `rolls`.
-`round_total_multiplier` records the actual settlement multiplier factor applied to round-level `base_symbol_win_amount`.
-It MUST be 1 when the current round generates no `round_multiplier_increment`.
-
----
-
-##### 4.1.2.3 Roll Records
-
-###### 4.1.2.3.1 Field Name
-
-- roll_id
-- roll_win_amount
-- roll_type
-
-- strip_set_id
-- multiplier_profile_id
-
-- roll_filled_state
-- roll_final_state
-
-- roll_multi_symbols_num
-- roll_multi_symbols_carry
-
-- roll_scatter_symbols_num
-
-###### 4.1.2.3.2 Structure
-
-Each roll record belongs to one round record.
-Scatter and multiplier symbols may remain present across rolls, but round-level aggregation MUST count each symbol instance at most once within the same round. Counting is based on persisted board-state instances observed across rolls
-
-**Symbol instance identity**: A symbol instance is uniquely identified by `(first_observed_roll_id, first_observed_row, first_observed_col)`. Gravity movement within subsequent cascades does not create a new instance.
-
-
-### 4.2 Invariants
-
-- deterministic
-- complete
-- neutral
-- no validation or interpretive data
-
----
-
-## 5. Metrics Layer
-
-Input:
-- CanonicalResult
-
-Output:
-- MetricsBundle
+### 3.5 Metrics
 
 Responsibilities:
+
 - compute descriptive statistics only
+- read canonical data only
 
-Core metrics:
-- empirical RTP
-- hit frequency
-- payout distribution
-- tail concentration
-- optional feature metrics
+Metrics MUST NOT:
 
-Rule:
-- Metrics MUST NOT modify canonical data
-- no pass/fail logic here
-- Metrics MUST compute all aggregates from raw canonical data
+- modify canonical data
+- perform validation judgement
+- infer hidden engine state
+
+### 3.6 Validation
+
+Responsibilities:
+
+- validate canonical structure and gameplay contract
+- validate metric sanity
+- validate statistical expectations against explicit rules
+
+Validation MUST NOT:
+
+- mutate upstream data
+- recompute engine outcomes
+- redefine metric values
+
+### 3.7 Export
+
+Responsibilities:
+
+- provide inspection-oriented outputs
+- provide tuning-oriented outputs
+
+Export MUST be read-only relative to canonical and metrics data.
 
 ---
 
-## 6. Validation
+## 4. Canonical Result Schema Summary
 
-### 6.1 Structure
+### 4.1 Simulation Metadata
 
-Validation MUST ensure schema compatibility before any evaluation.
+- `simulation_id`
+- `config_id`
+- `config_version`
+- `engine_version`
+- `schema_version`
+- `mode`
+- `seed`
+- `bet_amount`
+- `bet_level`
+- `total_bets`
+- `timestamp`
 
-#### 6.1.1 Structural Validation
+### 4.2 Bet Record
 
-Input:
-- CanonicalResult
-- Config
+- `bet_id`
+- `bet_win_amount`
+- `basic_win_amount`
+- `free_win_amount`
+- `round_count`
+- `bet_final_state`
+- `rounds`
 
-Responsibilities:
-- verify structural correctness
-- verify mapping consistency
-- detect logical violations
-- verify schema_version compatibility
-- verify engine_version consistency
-- verify config_version consistency
+### 4.3 Round Record
 
-Examples:
-- round_count must equal the number of recorded rounds
-- payout aggregates must match the sum of their child records
-- referenced IDs must exist in config
+- `round_id`
+- `round_type`
+- `round_win_amount`
+- `base_symbol_win_amount`
+- `carried_multiplier`
+- `round_multiplier_increment`
+- `round_total_multiplier`
+- `round_scatter_increment`
+- `award_free_rounds`
+- `scatter_win_amount`
+- `roll_count`
+- `round_final_state`
+- `rolls`
 
-Output:
-- spec validation report
+### 4.4 Roll Record
+
+- `roll_id`
+- `roll_win_amount`
+- `roll_type`
+- `strip_set_id`
+- `multiplier_profile_id`
+- `column_strip_ids`
+- `fill_start_indices`
+- `fill_end_indices`
+- `roll_pre_fill_state`
+- `roll_filled_state`
+- `roll_cleared_state`
+- `roll_gravity_state`
+- `roll_multi_symbols_num`
+- `roll_multi_symbols_carry`
+- `roll_scatter_symbols_num`
 
 ---
 
-#### 6.1.2 Statistical Validation
+## 5. Validation Model
+
+The current repository implements three validation categories:
+
+### 5.1 Canonical Validation
 
 Input:
-- MetricsBundle
-- expected ranges / CI
+
+- `CanonicalResult`
+- config
 
 Responsibilities:
-- evaluate deviation from expected values
+
+- structural consistency
+- aggregation consistency
+- gameplay-contract checks
+
+### 5.2 Metrics Validation
+
+Input:
+
+- `MetricsBundle`
+
+Responsibilities:
+
+- sanity checks on metric shape and basic validity
+
+### 5.3 Statistical Validation
+
+Input:
+
+- `MetricsBundle`
+- `ValidationRules`
+
+Responsibilities:
+
+- evaluate deviation from explicit targets
 - apply confidence-based checks
 
-Output:
-- statistical validation report
+### 5.4 Not Implemented Here
+
+Baseline regression validation is intentionally not part of the current implementation in this repository.
 
 ---
 
-#### 6.1.3 Baseline Regression Validation
-
-Input:
-- MetricsBundle
-- baseline metrics
-
-Responsibilities:
-- detect drift across versions or configs
-- ensure stability over iterations
-
-Output:
-- regression validation report
-
----
-
-### 6.2 Output
-
-All checks produce:
-
-- observed value
-- expected value / range
-- deviation
-- verdict
-- notes
-
----
-
-
-# Pipeline Interface & Artifact
-
-This section defines both:
-- the output structure of the pipeline
-- the minimal callable interfaces
-
-## Pipeline Artifact
+## 6. Pipeline Artifact
 
 ```python
-PipelineArtifact = {
+PipelineResult = {
     canonical_result,
     metrics_bundle,
-    validation_report,
-    optional_export_refs
+    canonical_validation,
+    metrics_validation,
+    statistical_validation,   # optional when rules are not supplied
 }
 ```
 
-Rule:
-- simulation_metadata MUST be sourced from canonical_result
-
 ---
 
-## Minimal Core Interfaces
+## 7. Minimal Interfaces
 
 ```python
-run_simulation(config, seed) -> CanonicalResult
-
+run_simulation(config) -> CanonicalResult
 compute_metrics(result) -> MetricsBundle
-
-# Validation is composed of three independent categories:
-validate_structure(canonical_result, config) -> StructuralValidationReport
+validate_canonical(canonical_result, config) -> ValidationReport
+validate_metrics(metrics) -> ValidationReport
 validate_statistics(metrics, validation_rules) -> StatisticalValidationReport
-validate_regression(metrics, baseline_metrics) -> RegressionValidationReport
-
-# Full validation entry point aggregates all three:
-run_validation(canonical_result, config, metrics, validation_rules, baseline_metrics) -> ValidationReport
-
-run_pipeline(config, seed) -> PipelineArtifact
+run_pipeline(config, validation_rules=None) -> PipelineResult
 ```
-
-The three validation categories are independent. `validate_structure` consumes `CanonicalResult` and config only. `validate_statistics` consumes `MetricsBundle` and rules only. `validate_regression` consumes `MetricsBundle` and baseline metrics only. None of them modify upstream data.
 
 ---
 
-# System Constraints
+## 8. System Constraints
 
-## Dependency Rules
+### Dependency Rules
 
 - engine does not depend on metrics or validation
 - metrics does not depend on validation
 - validation does not modify upstream data
 - export does not affect core logic
 
-## Non-Goals
+### Non-Goals
 
 - no runtime control or adaptive outcome logic
-- no mixing generation, measurement, and validation
+- no player behavior prediction
 - no fairness proof via simulation alone
-- no live behavior prediction
+- no generic multi-game engine/plugin framework
 
-## Special Notes
+### Mode Notes
 
-In buy_free mode:
+In `buy_free` mode:
 
-- bet_amount = 80 × base bet
-- bet_level = base bet
+- `bet_amount = 80 * base bet`
+- `bet_level = base bet`
 
-This ensures:
+This keeps:
 
-- cost-based metrics reflect actual payment
-- payout-based metrics remain comparable across modes
-
----
+- cost-based metrics grounded in actual payment
+- payout-based metrics comparable across modes

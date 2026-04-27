@@ -1,164 +1,146 @@
 # System Scope Specification
 
----
+## 0. Purpose
 
-## 1. Purpose
-
-This document defines the **scope and boundary** of the validation system.
+This document defines the scope and boundary of the current repository.
 
 It clarifies:
 
-* what this system is responsible for
-* what this system is NOT responsible for
-* what “correctness” means in this project
+- what this repository is responsible for
+- what it is not responsible for
+- what "correctness" means in this project
 
-This document **does NOT define**:
+This document does not define:
 
-* implementation rules
-* data schemas
-* metric calculations
-* validation logic
+- implementation rules
+- data schemas
+- metric calculations
+- validation logic details
 
-All executable definitions MUST be defined in:
+Those belong in:
 
-* architecture_spec.md
-* config_spec.md
-* engine_spec.md
-* canonical_spec.md
-* metrics_spec.md
-* validation_spec.md
+- `architecture_spec.md`
+- `config_spec.md`
+- `engine_spec.md`
+- `canonical_spec.md`
+- `metrics_spec.md`
+- `validation_spec.md`
 
 ---
 
-## 2. System Goal
+## 1. Repository Goal
 
-This system is a:
+This repository is a:
 
 ```text
-validation-first slot math system
+Gate of Olympus-anchored, validation-first slot math prototype
 ```
 
-Its purpose is to determine whether a slot game implementation is:
+Its purpose is to determine whether the current implementation is:
 
-* correct
-* reproducible
-* statistically consistent with its predefined design
-
----
-
-## 3. What This System Validates
-
-This system validates:
-
-### 3.1 Implementation correctness
-
-Whether the implementation follows the predefined rules.
-
-Examples include:
-
-* payout mapping correctness
-* trigger logic correctness
-* symbol weight application correctness
-* mode-specific behavior correctness
+- rule-consistent
+- reproducible
+- statistically aligned with explicit targets
 
 ---
 
-### 3.2 Reproducibility
+## 2. What This Repository Validates
 
-Whether the system produces identical results under identical inputs.
+### 2.1 Implementation correctness
+
+Whether the implementation follows its declared rules.
+
+Examples:
+
+- payout mapping correctness
+- trigger logic correctness
+- symbol weight application correctness
+- mode-specific behavior correctness
+
+### 2.2 Reproducibility
+
+Whether the same config and seed produce the same results.
 
 This requires:
 
-* fixed seed
-* fixed config
-* deterministic execution
+- fixed seed
+- fixed config
+- deterministic execution
 
----
+### 2.3 Statistical consistency
 
-### 3.3 Statistical consistency
-
-Whether observed results are consistent with expected behavior.
+Whether observed results are consistent with declared validation targets.
 
 Important:
 
-* validation is statistical, not exact equality
-* results must be interpretable under sampling uncertainty
+- validation is statistical, not exact-equality matching
+- results must be interpreted under sampling uncertainty
 
 ---
 
-## 4. What This System Does NOT Do
+## 3. What This Repository Does Not Do
 
-This system does NOT:
+This repository does not:
 
-* predict player behavior
-* evaluate retention or monetization
-* optimize game design
-* validate commercial performance
+- predict player behavior
+- evaluate retention or monetization
+- optimize game design automatically
+- validate commercial performance
 
-This system also MUST NOT perform:
+It also must not perform:
 
-* runtime balancing
-* adaptive probability adjustment
-* player-dependent logic
-* outcome steering
-
----
-
-## 5. Definition of Correctness
-
-Correctness in this system includes three layers:
-
-### 5.1 Implementation correctness
-
-The implementation faithfully follows the defined rules.
+- runtime balancing
+- adaptive probability adjustment
+- player-dependent logic
+- outcome steering
 
 ---
 
-### 5.2 Reproducibility correctness
+## 4. Definition of Correctness
+
+Correctness in this repository has three layers:
+
+### 4.1 Implementation correctness
+
+The implementation faithfully follows the declared gameplay rules.
+
+### 4.2 Reproducibility correctness
 
 The same inputs always produce the same outputs.
 
 There must be:
 
-* no hidden randomness
-* no uncontrolled state mutation
-* no environment-dependent behavior
+- no hidden randomness
+- no uncontrolled state mutation
+- no environment-dependent behavior
+
+### 4.3 Validation correctness
+
+Observed results are evaluated against explicit validation rules in a reproducible way.
 
 ---
 
-### 5.3 Validation correctness
+## 5. Boundary of This Repository
 
-Observed results are consistent with expectations under defined validation rules.
-
-Important:
-
-* validation rules are defined in validation_spec.md
-* this document does NOT define those rules
-
----
-
-## 6. Boundary of This System
-
-This system operates under controlled simulation conditions.
+This repository operates under controlled simulation conditions.
 
 It answers:
 
-* does the implementation match the specification?
-* is the system reproducible?
-* are results statistically consistent?
+- does the implementation match its specification?
+- is the system reproducible?
+- are results statistically consistent with the current target set?
 
-It does NOT answer:
+It does not answer:
 
-* how real players behave
-* whether the game performs well in production
+- how real players behave
+- whether the game performs well in production
+- how to generalize this design into a multi-game framework
 
 ---
 
-## 7. One-Line Summary
+## 6. One-Line Summary
 
 ```text
-This system validates mathematical correctness under controlled conditions.
+This repository validates mathematical correctness under controlled simulation conditions.
 It does not model player behavior or perform runtime control.
 ```
-
----

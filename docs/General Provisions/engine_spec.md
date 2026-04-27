@@ -1,532 +1,295 @@
+# Engine Specification
 
-# 1. Scope
+## 0. Purpose
 
-This file defines the **execution flow of a single bet**.
+This document defines the engine contract for the current repository.
 
-* deterministic only
-* covers full lifecycle of one bet
-* no batch / simulation logic
+The engine in this repository is intentionally **Gate of Olympus-style and gameplay-bound**. It is not a generic slot engine.
 
----
+Its job is to:
 
-# 2. Inputs
-
-Engine receives:
-- normalized config
-- RNG (seeded)
-- bet_amount   (actual paid amount)
-- bet_level    (payout normalization base)
-
-All required game rules MUST be fully defined in normalized config.
-
-## Payout Contract (Critical)
-
-All payout evaluation MUST:
-
-- use bet_level as the normalization base
-- never use bet_amount in payout calculation
-
-bet_amount is strictly forbidden in:
-- paytable evaluation
-- symbol win calculation
-- multiplier application
+- read config
+- consume seeded RNG in a deterministic order
+- execute gameplay rules
+- produce raw execution results for canonical recording
 
 ---
 
+## 1. Core Principle
 
-# 3. Execution Flow (Single Bet)
+> The engine generates outcomes. It does not measure them, validate them, or reinterpret them.
 
-## 3.1 Bet Execution
+Pipeline position:
 
-1. Initialize bet:
-   - read simulation_mode (normal / buy_free / chance_increase)
-   - set:
-     - round_type = basic
-     - carried_multiplier = 0
-     - remaining_rounds = 1
-
-2. Execute rounds while remaining_rounds > 0:
-   - determine round_type:
-     - first round → basic
-     - subsequent rounds → free
-
-   - execute round
-
-   - accumulate multiplier:
-     - if round_type = free and base symbol win > 0:
-         carried_multiplier += sum(multiplier from current round)
-
-   - update remaining_rounds:
-     - remaining_rounds -= 1
-     - if free rounds awarded → remaining_rounds += awarded rounds
-
-3. Aggregate results:
-   - compute basic_win_amount
-   - compute free_win_amount
-
----
-
-## 3.2 Round Execution
-
-1. Initialize round:
-   - read round_type
-   - read carried_multiplier
-
-   - read round-level selection weights from config:
-     - round_strip_set_weights
-     - round_multiplier_profile_weights
-
-   - perform weighted random selection:
-     - determine strip_set_id
-     - determine multiplier_profile_id
-
-   - establish column-to-strip mapping:
-     - shuffle strips within selected strip set
-     - assign strips to columns
-     - mapping MUST remain fixed throughout the round
-
-   - initialize empty symbol matrix
-
-   Refill sampling rule:
-   
-   - during cascades and refills, each column reuses the same round-selected strip and the same fixed column-to-strip mapping
-   - each refill event samples a new random start position independently for that column
-   - the engine does not carry a persistent strip cursor across rolls
-   - refill sampling must remain deterministic given the fixed RNG call order
-   - columns are processed in fixed ascending column order (column 0 first)
-   - refill-position RNG is called exactly once per column only when that column has empty_count > 0
-   - no refill-position RNG call is made for columns where empty_count = 0
-   - board coordinates use `matrix[row][col]`, where row 0 is the bottom row and row index increases upward
-   - for each column, refill write-back MUST occur in ascending row index order; that is, empty positions are filled from closest-to-gravity-boundary to furthest
-   - for any fill operation, the first sampled symbol from the cyclic strip slice MUST be written to the lowest target row in that column, and subsequent sampled symbols MUST be written in ascending row index order.
-
-2. Execute rolls until no further cascade:
-   - perform roll
-   - continue only while the current roll generates regular-symbol base win
-   - if the current roll generates no regular-symbol base win, the round terminates
-
-3. Compute base symbol win amount:
-   - sum of base wins from all rolls (before multiplier)
-
-4. Compute multiplier effect:
-   - sum_multiplier = sum(multiplier from all multiplier symbols in this round)
-   
-   - multiplier applies only to base_symbol_win_amount
-   - multiplier MUST NOT apply to scatter_win_amount
-
-   - carried carried_multiplier applies only when the current round also generates multiplier symbols
-
-   - if sum_multiplier > 0:
-     - round_total_multiplier = sum_multiplier + carried_multiplier
-     - total_symbol_win = base_symbol_win * round_total_multiplier
-   - else:
-     - round_total_multiplier = 1
-     - total_symbol_win = base_symbol_win
-
-5. Compute scatter win amount
-   - round_scatter_increment counts unique scatter symbol instances observed within the round
-   - a given scatter symbol instance MUST be counted at most once within the same round (consistent with the round-level symbol-instance rule)
-   - scatter payout lookup and free-round trigger both use this same round-level unique-instance count
-
-   - scatter payout lookup follows the same threshold rule as regular symbol payout lookup
-   - if the exact scatter count is not defined:
-     - the highest defined threshold not exceeding the count is used
-     - If no defined scatter payout threshold is less than or equal to the observed count, scatter_win_amount = 0.
-
-6. Compute round total win:
-   - round_win = total_symbol_win + scatter_win_amount
-
-7. Determine free rounds:
-   - if round_type = basic and round_scatter_increment >= 4:
-     - award 15 free rounds
-   - if round_type = free and round_scatter_increment >= 3:
-     - award 5 free rounds
-
----
-
-## 3.3 Roll Execution
-
-1. Read current symbol matrix
-
-2. Fill empty positions:
-   - use the round-selected strip_set_id and fixed column-to-strip mapping
-
-   - for each column:
-     - for the initial roll of a round: fill row_count positions
-     - for a cascade refill: fill exactly empty_count positions
-     - sample symbol positions from the assigned strip
-     - generate symbols to fill the required number of positions
-
-   - produce new symbol matrix
-
-   - if multiplier symbols exist:
-     - multiplier positions are traversed in row-major order (row 0 first, then ascending column within each row)
-     - for each multiplier symbol in that order:
-       - sample multiplier value from the round-selected multiplier_profile_id
-       - assign exactly one value per symbol
-
-   Non-regular symbol recording rule:
-   
-   - scatter symbols and multiplier symbols are recorded from the evaluated roll state
-   - they do not participate in regular-symbol win evaluation
-   - they are not removed by roll settlement
-   - within the same round, a given scatter symbol instance or multiplier symbol instance MUST be counted at most once for round-level aggregation
-
-3. Evaluate base symbol wins
-
-### Base Symbol Win Evaluation
-
-Base-symbol win evaluation applies only to symbols where:
-
-- `symbol_type == "regular"`
-
-Winning rule:
-
-- all symbols are evaluated by type (symbol_id)
-- for each regular symbol type:
-  - count the total number of occurrences on the board
-- A winning combination exists when the total count of a regular symbol type on the board satisfies at least one qualifying payout -threshold defined in PAYTABLE[symbol_id]["payouts"].
-
-Scatter and multiplier symbols do not form winning combinations for roll-level base-symbol evaluation.
-
-Payout rule:
-
-- the symbol count determines the payout lookup key
-- payout is read from `PAYTABLE[symbol_id]["payouts"]`
-- if the exact count is not defined:
-  - the highest defined threshold not exceeding the count is used
-  - If no defined regular-symbol payout threshold is less than or equal to the observed count, the payout for that symbol type is 0.
-
-Settlement rule:
-
-- each symbol type is evaluated independently
-- multiple symbol types may generate wins in the same roll
-- total roll base win is the sum of all symbol-type payouts evaluated on `bet_level`
-
-Clearing rule:
-- for each winning regular symbol type, all positions of that symbol type on the evaluated board are cleared
-- scatter symbols and multiplier symbols are never removed by regular-symbol clearing, regardless of board position
-
-Non-regular symbols:
-
-- `scatter` symbols do not participate in base-symbol payout evaluation
-- `multiplier` symbols do not participate in base-symbol payout evaluation
-
-4. Clear winning symbols:
-   - calculate base win
-
-5. Apply gravity:
-   - remaining symbols fall
-   - produce updated symbol matrix
-
----
-
-# 4. Config-to-Engine Mapping
-
-This section defines how the engine reads and uses configuration data.
-
-The goal is to ensure that:
-
-- all runtime behavior is fully determined by config
-- all config usage is explicit and deterministic
-- no implicit or hidden logic is introduced in implementation
-
-This section is normative unless explicitly stated otherwise.
-
----
-
-## 4.1 Simulation Mode Resolution
-
-The engine reads from:
-
-```python
-SIMULATION_MODE
+```text
+config -> engine -> canonical -> metrics -> validation
 ```
 
-For the selected mode:
+The engine must remain:
 
-* resolve:
+- deterministic
+- config-driven
+- free of runtime manipulation
+- free of player-dependent logic
 
-  * `mode_name`
-  * `bet_cost_multiplier`
+---
 
-The engine MUST compute:
+## 2. Input Contract
 
-* `bet_amount = base_bet * bet_cost_multiplier`
-* `bet_level = base_bet`
+The engine consumes:
+
+- normalized simulation config
+- seeded RNG
+
+Config provides:
+
+- mode selection
+- paytable
+- multiplier values and weight profiles
+- strip sets
+- mode/round-type implementation weights
+
+The engine must treat config as read-only.
+
+---
+
+## 3. Mode and Amount Semantics
+
+The current repository supports three modes:
+
+- `normal`
+- `buy_free`
+- `chance_increase`
+
+Amount semantics:
+
+- `bet_amount` = actual paid amount for the bet
+- `bet_level` = payout normalization base
 
 Rules:
 
-* `bet_amount` is used for cost-based calculations only
-* `bet_level` is used for all payout evaluation
-* these two must not be mixed
+- all payout generation uses `bet_level`
+- return-based metrics later use `bet_amount`
+- the engine must not mix these two concepts
+
+In `buy_free` mode:
+
+- `bet_amount = 80 * base bet`
+- `bet_level = base bet`
 
 ---
 
-## 4.2 Round Initialization Inputs
+## 4. Execution Hierarchy
 
-At the start of each round, the engine reads:
+The engine executes using the current repository hierarchy:
 
-```python
-IMPLEMENTATION_CONFIG[mode][round_type]
+```text
+bet -> round -> roll
 ```
 
-The engine reads:
+### 4.1 Bet
 
-- `round_strip_set_weights`
-- `round_multiplier_profile_weights`
+A bet is the top-level simulated unit.
 
-These define:
+One bet always begins with one `basic` round.
 
-- the selection distributions for strip set selection
-- the selection distributions for multiplier profile selection
+If free rounds are awarded, they are executed within the same bet.
+
+### 4.2 Round
+
+A round is either:
+
+- `basic`
+- `free`
+
+A round contains one or more rolls.
+
+### 4.3 Roll
+
+A roll is either:
+
+- `initial`
+- `cascade`
+
+A roll terminates at the **gravity-resolved board state**.
+
+The engine does not treat refill-completed next state as part of the current roll terminal state.
+
+---
+
+## 5. Round Flow
+
+### 5.1 Basic Round
+
+For a basic round, the engine:
+
+1. selects a strip set using `round_strip_set_weights`
+2. selects a multiplier profile using `round_multiplier_profile_weights`
+3. shuffles strip ids inside the selected strip set once
+4. binds the shuffled strip ids to the 6 columns for the round
+5. runs the initial roll
+6. continues cascades until no further regular-symbol clear occurs
+7. settles scatter payout and free-round award
+
+### 5.2 Free Round
+
+Free rounds follow the same roll lifecycle, but use the `free` implementation weights for the current mode.
+
+Free rounds may award additional free rounds.
+
+### 5.3 Free Queue
+
+The engine maintains a free-round queue at the bet level.
 
 Rules:
 
-- these fields provide weight distributions only, not final selections
-- engine MUST perform a weighted random selection to determine:
-  - `strip_set_id`
-  - `multiplier_profile_id`
-
-- selection must be:
-  - RNG-driven
-  - performed once per round
-  - independent across rounds
-  - deterministic given seed
+- a triggering basic round can award free rounds
+- free rounds can retrigger additional free rounds
+- the queue is consumed until empty
 
 ---
 
-## 4.3 Strip Set Selection and Usage
+## 6. Roll Flow
 
-The engine selects a `strip_set_id` based on:
+The current roll lifecycle is:
 
-```python
-round_strip_set_weights
+```text
+pre_fill -> filled -> cleared -> gravity
 ```
 
-Selection rules:
+### 6.1 `roll_pre_fill_state`
 
-* exactly one strip set is selected per round
-* selection occurs once at round start
+- initial roll: empty 5x6 board
+- cascade roll: previous roll's `roll_gravity_state`
 
-Usage rules:
+### 6.2 `roll_filled_state`
 
-* within the same round:
+Board after filling all empty positions for the current roll.
 
-  * strip set MUST NOT change
-  * column-to-strip mapping MUST NOT change during cascades:
+### 6.3 `roll_cleared_state`
 
-  * refill MUST reuse the same strip set
-  * refill MUST NOT reshuffle strip order
+Board after clearing winning regular symbols.
 
-This ensures that:
+### 6.4 `roll_gravity_state`
 
-* all rolls within a round share the same strip context
-* cascade behavior is reproducible and bounded
+Board after gravity resolution.
+
+This is the terminal board state of the current roll.
 
 ---
 
-## 4.4 Multiplier Profile Selection
+## 7. Strip and Fill Semantics
 
-The engine selects a `multiplier_profile_id` based on:
+### 7.1 Strip Set Selection
 
-```python
-round_multiplier_profile_weights
+At round start, the engine selects one `strip_set_id`.
+
+### 7.2 Column Strip Binding
+
+Within a round:
+
+- strip ids are shuffled once
+- the resulting `column_strip_ids` remain fixed for the round
+
+### 7.3 Fill Range Recording
+
+Each roll records:
+
+- `fill_start_indices`
+- `fill_end_indices`
+
+Semantics:
+
+- `fill_start_indices` = actual start positions used by this roll's fill
+- `fill_end_indices` = actual last-used positions of this roll's fill
+
+These are human-readable fill ranges, not "next pointer" positions.
+
+---
+
+## 8. Regular Win Evaluation
+
+Regular-symbol payout evaluation:
+
+- uses `bet_level`
+- is based on the current filled board
+- contributes to `roll_win_amount`
+
+The engine then:
+
+- clears winning regular symbols
+- keeps scatter and multiplier symbols on the board
+- applies gravity
+- continues cascade if another roll is warranted
+
+---
+
+## 9. Scatter and Multiplier Semantics
+
+### 9.1 Scatter
+
+Scatter:
+
+- has independent payout mapping from the paytable
+- can award free rounds
+- is aggregated at round level
+
+### 9.2 Multiplier Symbols
+
+Multiplier symbols:
+
+- sample values from the selected multiplier profile
+- contribute to `round_multiplier_increment`
+- are recorded roll-by-roll through `roll_multi_symbols_carry`
+
+### 9.3 Carried Multiplier
+
+`carried_multiplier` is a free-game carry concept.
+
+Rules in the current implementation:
+
+- carry starts at `0`
+- basic rounds do not carry multiplier into subsequent rounds
+- free rounds may accumulate carry across rounds
+- current-round settlement uses:
+  - `carried_multiplier + round_multiplier_increment`
+  - only when the current round generated multiplier increment
+- if no multiplier increment is generated in the round:
+  - `round_total_multiplier = 1`
+
+---
+
+## 10. Determinism Rules
+
+The engine must satisfy:
+
+```text
+(config, seed, engine_version) -> identical execution result
 ```
 
-Mapping:
+This requires:
 
-```python
-multiplier_profile_id -> MULTIPLIER_DATA['weight'][id]
-```
+- seeded RNG only
+- fixed RNG call order
+- no hidden entropy
+- no environment-dependent branching
 
-Rules:
+Weighted selection is treated as distribution-driven, not absolute-weight-driven:
 
-* exactly one multiplier profile is selected per round
-* the selected profile is fixed for the entire round
-* multiplier values in rolls must be sampled from this profile
-
-No runtime switching of multiplier profiles is allowed within a round.
+- one-hot weights do not consume extra RNG
+- proportionally equivalent integer weights are normalized before selection
 
 ---
 
-## 4.5 Symbol Identity and Type Resolution
+## 11. Non-Goals
 
-Symbol identity and behavior MUST be derived from:
+The engine does not:
 
-```python
-PAYTABLE
-```
+- compute metrics
+- perform validation
+- export reports
+- adapt probabilities at runtime
+- model player behavior
+- try to be reusable across unrelated game families
 
-Specifically:
-
-* `symbol_type` defines behavior:
-
-  * regular
-  * scatter
-  * multiplier
-
-Rules:
-
-* engine MUST NOT redefine symbol categories elsewhere
-* all behavior branching must be based on `symbol_type`
-
----
-
-## 4.6 Multiplier Value Assignment
-
-Multiplier symbols are identified via:
-
-```python
-symbol_type == "multiplier"
-```
-
-For each multiplier symbol:
-
-* a value must be sampled from the selected multiplier profile
-
-Rules:
-
-* values must come from `MULTIPLIER_DATA['value']`
-* weights must come from the selected profile
-* each multiplier symbol generates exactly one value
-
----
-
-## 4.7 Scatter Evaluation and Free Round Trigger
-
-Scatter symbols are identified via:
-
-```python
-symbol_type == "scatter"
-```
-
-Rules for free round triggers:
-
-* if `round_type == basic` and `round_scatter_increment >= 4`:
-
-  * award 15 free rounds
-
-* if `round_type == free` and `round_scatter_increment >= 3`:
-
-  * award 5 free rounds
-
-Rules:
-
-* thresholds must not be configurable at runtime
-* trigger logic must not depend on previous outcomes beyond canonical state
-
----
-
-## 4.8 Invariants
-
-The following must hold:
-
-* all selections are:
-
-  * RNG-driven
-  * deterministic given seed
-  * independent of outcome
-
-* no configuration field may be:
-
-  * conditionally switched at runtime based on results
-  * dynamically adjusted based on player behavior
-
-* config defines:
-
-  * possibility space
-
-* engine defines:
-
-  * execution path within that space
-
----
-
-## 4.9 Example (Non-Normative)
-
-Example:
-
-If:
-
-* `mode = 2`
-* `round_type = basic`
-
-Then engine reads:
-
-```python
-IMPLEMENTATION_CONFIG[2]["basic"]
-```
-
-From which it:
-
-* performs weighted random selection using `round_strip_set_weights`
-  - determines `strip_set_id`
-
-* performs weighted random selection using `round_multiplier_profile_weights`
-  - determines `multiplier_profile_id`
-
-This example is illustrative only and does not define additional rules.
-
----
-
-# 5. State Progression
-
-* each roll produces a new state
-* cascade uses previous roll result as next input
-* round state is updated incrementally
-* bet state accumulates round results
-
----
-
-# 6. Output Boundary
-
-After execution, engine MUST produce:
-
-* bet-level outcome
-* ordered round sequence
-* ordered roll sequence within each round
-* state progression across rolls
-* all payout sources required to reconstruct outcomes
-
-Output MUST be sufficient for:
-
-* deterministic replay
-* canonical recording
-
----
-
-# 7. Determinism
-
-The following must hold:
-
-(config, seed, engine_version) -> identical CanonicalResult
-
-Payout normalization MUST be based on bet_level.
-Return-based metrics MUST be based on bet_amount.
-
----
-
-# 8. Forbidden Patterns
-
-The following are NOT allowed:
-
-* reroll
-* result filtering
-* runtime probability adjustment
-* player-dependent logic
-* hidden state mutation outside defined flow
-
----
-
-# Summary
-
-Engine executes a bet as:
-
-* deterministic
-* state-driven
-* round-based
-* roll-resolved
-
-It produces a complete, ordered execution path for canonical recording.
-
+Its scope is the current gameplay prototype only.
