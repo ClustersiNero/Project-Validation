@@ -212,11 +212,11 @@ if __name__ == "__main__":
         run_lengths=    [1, 2, 3, 4, 5],
         run_weights=    [9, 0, 0, 0, 0],
         symbols=        [1, 2, 3, 4, 5, 6, 7, 8, 9],
-        # symbol_weights= [3, 3, 3, 3, 3, 2, 2, 2, 1],  # 长条轴专用：1.包含4\5连片；2.符号全涵盖
-        # symbol_weights= [0, 4, 0, 4, 0, 2, 0, 2, 1],  # 错位轴组件1
-        # symbol_weights= [3, 0, 3, 0, 3, 0, 2, 0, 1],  # 错位轴组件2
-        # symbol_weights= [1, 0, 1, 0, 1, 0, 1, 0, 1],    # buy free专用1
-        symbol_weights= [1, 1, 0, 1, 0, 1, 0, 1, 0],    # buy free专用2
+        # symbol_weights= [3, 3, 3, 3, 3, 2, 2, 2, 1],  
+        # symbol_weights= [0, 4, 0, 4, 0, 2, 0, 2, 1],  
+        # symbol_weights= [3, 0, 3, 0, 3, 0, 2, 0, 1],  
+        # symbol_weights= [1, 0, 1, 0, 1, 0, 1, 0, 1],  
+        symbol_weights= [1, 1, 0, 1, 0, 1, 0, 1, 0],    
         axis_count=6,
         seed=12345,
     )
